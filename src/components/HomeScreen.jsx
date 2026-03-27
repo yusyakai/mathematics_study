@@ -1,14 +1,43 @@
+import { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
+import { SUBJECTS, DIFFICULTIES, DIFFICULTY_ORDER } from '../data/categories';
 
 export default function HomeScreen() {
   const { state, dispatch, questions } = useApp();
+  const [selectedSubject, setSelectedSubject] = useState(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState(null);
 
   const weakTags = getWeakTags(state.mistakeHistory);
   const accuracy = state.stats.totalAnswered > 0
     ? Math.round((state.stats.totalCorrect / state.stats.totalAnswered) * 100)
     : 0;
 
-  const allTags = [...new Set(questions.flatMap(q => q.tags))];
+  // 科目でフィルタリング
+  const filteredBySubject = selectedSubject
+    ? questions.filter(q => q.subject === selectedSubject)
+    : questions;
+
+  // 難易度でフィルタリング
+  const filteredQuestions = selectedDifficulty
+    ? filteredBySubject.filter(q => q.difficulty === selectedDifficulty)
+    : filteredBySubject;
+
+  // 選択中の科目の単元一覧
+  const unitsInSubject = selectedSubject
+    ? [...new Set(filteredBySubject.map(q => q.unit))]
+    : [];
+
+  // 科目ごとの問題数
+  const subjectCounts = {};
+  Object.keys(SUBJECTS).forEach(key => {
+    subjectCounts[key] = questions.filter(q => q.subject === key).length;
+  });
+
+  const startPractice = (questionList, timerMode = false) => {
+    const indices = questionList.map(q => questions.indexOf(q));
+    if (indices.length === 0) return;
+    dispatch({ type: 'START_PRACTICE', questionIndices: indices, timerMode });
+  };
 
   return (
     <div className="home-screen">
@@ -34,26 +63,87 @@ export default function HomeScreen() {
         </div>
       )}
 
+      {/* 難易度フィルター */}
+      <div className="difficulty-section">
+        <h2>難易度</h2>
+        <div className="difficulty-bar">
+          <button
+            className={`diff-btn ${selectedDifficulty === null ? 'active' : ''}`}
+            onClick={() => setSelectedDifficulty(null)}
+          >
+            全て
+          </button>
+          {DIFFICULTY_ORDER.map(key => (
+            <button
+              key={key}
+              className={`diff-btn ${selectedDifficulty === key ? 'active' : ''}`}
+              style={selectedDifficulty === key ? { background: DIFFICULTIES[key].color, borderColor: DIFFICULTIES[key].color } : {}}
+              onClick={() => setSelectedDifficulty(selectedDifficulty === key ? null : key)}
+            >
+              {DIFFICULTIES[key].label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 科目カテゴリ */}
+      <div className="category-section">
+        <h2>科目</h2>
+        <div className="category-grid">
+          {Object.entries(SUBJECTS).map(([key, subject]) => (
+            <button
+              key={key}
+              className={`category-btn ${selectedSubject === key ? 'active' : ''}`}
+              style={selectedSubject === key ? { borderColor: subject.color, background: subject.color + '15' } : {}}
+              onClick={() => setSelectedSubject(selectedSubject === key ? null : key)}
+            >
+              <span className="category-dot" style={{ background: subject.color }} />
+              <span className="category-label">{subject.label}</span>
+              <span className="category-count">{subjectCounts[key]}問</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 科目選択時: 単元一覧 */}
+      {selectedSubject && unitsInSubject.length > 0 && (
+        <div className="unit-section">
+          <h2>{SUBJECTS[selectedSubject].label} の単元</h2>
+          <div className="unit-list">
+            {unitsInSubject.map(unit => {
+              const unitQuestions = filteredQuestions.filter(q => q.unit === unit);
+              if (unitQuestions.length === 0) return null;
+              return (
+                <button
+                  key={unit}
+                  className="unit-btn"
+                  onClick={() => startPractice(unitQuestions)}
+                >
+                  <span className="unit-name">{unit}</span>
+                  <span className="unit-count">{unitQuestions.length}問</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* アクションボタン */}
       <div className="menu-section">
         <button
           className="menu-btn primary"
-          onClick={() => dispatch({
-            type: 'START_PRACTICE',
-            questionIndices: questions.map((_, i) => i),
-          })}
+          onClick={() => startPractice(filteredQuestions)}
+          disabled={filteredQuestions.length === 0}
         >
           <span className="menu-btn-icon">▶</span>
-          全問練習
-          <span className="menu-btn-sub">{questions.length}問</span>
+          {selectedSubject || selectedDifficulty ? '絞り込み練習' : '全問練習'}
+          <span className="menu-btn-sub">{filteredQuestions.length}問</span>
         </button>
 
         <button
           className="menu-btn accent"
-          onClick={() => dispatch({
-            type: 'START_PRACTICE',
-            questionIndices: questions.map((_, i) => i),
-            timerMode: true,
-          })}
+          onClick={() => startPractice(filteredQuestions, true)}
+          disabled={filteredQuestions.length === 0}
         >
           <span className="menu-btn-icon">⏱</span>
           タイムアタック
@@ -72,29 +162,27 @@ export default function HomeScreen() {
         )}
       </div>
 
-      <div className="tag-section">
-        <h2>分野別</h2>
-        <div className="tag-grid">
-          {allTags.map(tag => {
-            const tagQuestions = questions
-              .map((q, i) => ({ q, i }))
-              .filter(({ q }) => q.tags.includes(tag));
-            return (
-              <button
-                key={tag}
-                className="tag-btn"
-                onClick={() => dispatch({
-                  type: 'START_PRACTICE',
-                  questionIndices: tagQuestions.map(({ i }) => i),
-                })}
-              >
-                {tag}
-                <span className="tag-count">{tagQuestions.length}問</span>
-              </button>
-            );
-          })}
+      {/* 分野別タグ */}
+      {!selectedSubject && (
+        <div className="tag-section">
+          <h2>分野別</h2>
+          <div className="tag-grid">
+            {[...new Set(questions.flatMap(q => q.tags))].map(tag => {
+              const tagQuestions = questions.filter(q => q.tags.includes(tag));
+              return (
+                <button
+                  key={tag}
+                  className="tag-btn"
+                  onClick={() => startPractice(tagQuestions)}
+                >
+                  {tag}
+                  <span className="tag-count">{tagQuestions.length}問</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       <footer className="home-footer">
         <button

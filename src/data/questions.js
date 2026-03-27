@@ -1,11 +1,21 @@
 // 問題データ
 // 各問題は2〜3STEPで構成、選択肢は3つ固定
-// ユーザーが後から問題を追加する際はこの配列に追加してください
+//
+// フィールド説明:
+//   subject: "中学数学" | "数学I" | "数学A" | "数学II" | "数学B" | "数学III" | "数学C"
+//   unit: categories.js の各科目の units から選択
+//   difficulty: "C"(基本) | "B"(応用) | "A"(入試対策) | "S"(実践)
+//   tags: 自由なタグ（検索・復習用）
+//
+// 問題を追加する際はこの配列に追加してください
 
 const questions = [
   {
     id: "symmetry_001",
     title: "対称式 基本",
+    subject: "数学I",
+    unit: "数と式",
+    difficulty: "C",
     problem: "x + y = 3, xy = 2 のとき、x² + y² の値を求めよ。",
     steps: [
       {
@@ -23,12 +33,14 @@ const questions = [
         explanation_wrong: "与えられた条件 x+y, xy をそのまま代入できる公式は x² + y² = (x+y)² − 2xy です。"
       }
     ],
-    tags: ["対称式", "二次式"],
-    difficulty: 1
+    tags: ["対称式", "二次式"]
   },
   {
     id: "symmetry_002",
     title: "対称式 応用",
+    subject: "数学I",
+    unit: "数と式",
+    difficulty: "B",
     problem: "x + y = 5, xy = 6 のとき、x³ + y³ の値を求めよ。",
     steps: [
       {
@@ -61,12 +73,14 @@ const questions = [
         explanation_wrong: "対称式の最大の利点は、個別の値を求めずに基本対称式を直接代入できることです。"
       }
     ],
-    tags: ["対称式", "三次式"],
-    difficulty: 2
+    tags: ["対称式", "三次式"]
   },
   {
     id: "quadratic_001",
     title: "二次関数 最大最小",
+    subject: "数学I",
+    unit: "二次関数",
+    difficulty: "C",
     problem: "y = x² − 4x + 5 の最小値を求めよ。",
     steps: [
       {
@@ -88,12 +102,14 @@ const questions = [
         explanation_wrong: "平方完成: x² − 4x = (x−2)² − 4 なので、y = (x−2)² − 4 + 5 = (x−2)² + 1 です。"
       }
     ],
-    tags: ["二次関数", "最大最小"],
-    difficulty: 1
+    tags: ["二次関数", "最大最小"]
   },
   {
     id: "quadratic_002",
     title: "二次関数 定義域制限",
+    subject: "数学I",
+    unit: "二次関数",
+    difficulty: "B",
     problem: "y = x² − 2x + 3 (0 ≤ x ≤ 3) の最大値と最小値を求めよ。",
     steps: [
       {
@@ -119,12 +135,14 @@ const questions = [
         explanation_wrong: "下に凸の放物線の最大値は定義域の端で取ります。頂点 x=1 からの距離を比較すると、x=3 の方が遠いので x=3 で最大値です。"
       }
     ],
-    tags: ["二次関数", "最大最小", "定義域"],
-    difficulty: 2
+    tags: ["二次関数", "最大最小", "定義域"]
   },
   {
     id: "probability_001",
     title: "確率 基本",
+    subject: "数学A",
+    unit: "確率",
+    difficulty: "C",
     problem: "赤玉3個、白玉5個が入った袋から2個取り出すとき、2個とも赤玉である確率を求めよ。",
     steps: [
       {
@@ -150,8 +168,7 @@ const questions = [
         explanation_wrong: "組合せで考えます。分母は全体から2個選ぶ ₈C₂、分子は赤玉から2個選ぶ ₃C₂ です。"
       }
     ],
-    tags: ["確率", "組合せ"],
-    difficulty: 1
+    tags: ["確率", "組合せ"]
   }
 ];
 

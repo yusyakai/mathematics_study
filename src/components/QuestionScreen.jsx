@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
+import { SUBJECTS, DIFFICULTIES } from '../data/categories';
 
 export default function QuestionScreen() {
   const { state, dispatch, questions } = useApp();
@@ -64,9 +65,18 @@ export default function QuestionScreen() {
         </button>
         <div className="question-info">
           <span className="question-title">{question.title}</span>
-          <span className="step-indicator">
-            STEP {state.currentStepIndex + 1} / {question.steps.length}
-          </span>
+          <div className="question-meta">
+            <span className="question-subject" style={{ color: SUBJECTS[question.subject]?.color }}>
+              {SUBJECTS[question.subject]?.label}
+            </span>
+            <span className="question-unit">{question.unit}</span>
+            <span className="question-diff" style={{ color: DIFFICULTIES[question.difficulty]?.color }}>
+              {DIFFICULTIES[question.difficulty]?.label}
+            </span>
+            <span className="step-indicator">
+              STEP {state.currentStepIndex + 1}/{question.steps.length}
+            </span>
+          </div>
         </div>
         {state.timerMode && !answered && (
           <div className={`timer ${timeLeft <= 2 ? 'timer-warning' : ''}`}>
