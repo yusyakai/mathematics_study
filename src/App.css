@@ -163,6 +163,126 @@
   font-weight: 400;
 }
 
+/* Difficulty filter */
+.difficulty-section h2,
+.category-section h2,
+.unit-section h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+}
+
+.difficulty-bar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.diff-btn {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: 2px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text);
+}
+
+.diff-btn:hover {
+  border-color: var(--primary-light);
+}
+
+.diff-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+/* Category grid */
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.category-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.category-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.category-btn.active {
+  border-width: 2px;
+  font-weight: 700;
+}
+
+.category-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.category-label {
+  font-weight: 600;
+}
+
+.category-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Unit list */
+.unit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.unit-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+}
+
+.unit-btn:hover {
+  background: #eef2ff;
+  border-color: var(--primary-light);
+}
+
+.unit-name {
+  font-weight: 600;
+}
+
+.unit-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
 /* Footer */
 .home-footer {
   text-align: center;
@@ -221,6 +341,28 @@
 .question-title {
   font-size: 14px;
   font-weight: 600;
+}
+
+.question-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.question-subject {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.question-unit {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.question-diff {
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .step-indicator {

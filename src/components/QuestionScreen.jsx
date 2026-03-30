@@ -1,5 +1,23 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApp } from '../contexts/AppContext';
+import { SUBJECTS, DIFFICULTIES } from '../data/categories';
+
+// 配列をシャッフルしてインデックスマッピングを返す
+function shuffleChoices(choices, correctIndex) {
+  const indices = choices.map((_, i) => i);
+  // Fisher-Yates shuffle
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  return {
+    shuffledChoices: indices.map(i => choices[i]),
+    // シャッフル後の正解位置
+    shuffledCorrect: indices.indexOf(correctIndex),
+    // シャッフル後のインデックス → 元のインデックス
+    indexMap: indices,
+  };
+}
 
 export default function QuestionScreen() {
   const { state, dispatch, questions } = useApp();
@@ -11,7 +29,14 @@ export default function QuestionScreen() {
   const qIdx = state.questionQueue[state.currentQuestionIndex];
   const question = questions[qIdx];
   const step = question.steps[state.currentStepIndex];
-  const isCorrect = selectedIndex === step.correct;
+
+  // STEPが変わるたびに選択肢をシャッフル
+  const shuffled = useMemo(
+    () => shuffleChoices(step.choices, step.correct),
+    [state.currentQuestionIndex, state.currentStepIndex]
+  );
+
+  const isCorrect = selectedIndex === shuffled.shuffledCorrect;
 
   // Timer logic
   useEffect(() => {
@@ -36,16 +61,18 @@ export default function QuestionScreen() {
   useEffect(() => {
     if (state.timerMode && timeLeft === 0 && !answered) {
       setTimedOut(true);
-      handleAnswer(-1); // -1 = timed out (always wrong)
+      handleAnswer(-1);
     }
   }, [timeLeft]);
 
-  const handleAnswer = useCallback((index) => {
+  const handleAnswer = useCallback((displayIndex) => {
     if (answered) return;
-    setSelectedIndex(index);
+    setSelectedIndex(displayIndex);
+    // 元のインデックスに変換してdispatch
+    const originalIndex = displayIndex >= 0 ? shuffled.indexMap[displayIndex] : -1;
     setAnswered(true);
-    dispatch({ type: 'ANSWER_STEP', selectedIndex: index });
-  }, [answered, dispatch]);
+    dispatch({ type: 'ANSWER_STEP', selectedIndex: originalIndex });
+  }, [answered, dispatch, shuffled.indexMap]);
 
   const handleNext = () => {
     setAnswered(false);
@@ -64,9 +91,18 @@ export default function QuestionScreen() {
         </button>
         <div className="question-info">
           <span className="question-title">{question.title}</span>
-          <span className="step-indicator">
-            STEP {state.currentStepIndex + 1} / {question.steps.length}
-          </span>
+          <div className="question-meta">
+            <span className="question-subject" style={{ color: SUBJECTS[question.subject]?.color }}>
+              {SUBJECTS[question.subject]?.label}
+            </span>
+            <span className="question-unit">{question.unit}</span>
+            <span className="question-diff" style={{ color: DIFFICULTIES[question.difficulty]?.color }}>
+              {DIFFICULTIES[question.difficulty]?.label}
+            </span>
+            <span className="step-indicator">
+              STEP {state.currentStepIndex + 1}/{question.steps.length}
+            </span>
+          </div>
         </div>
         {state.timerMode && !answered && (
           <div className={`timer ${timeLeft <= 2 ? 'timer-warning' : ''}`}>
@@ -88,10 +124,10 @@ export default function QuestionScreen() {
       </div>
 
       <div className="choices">
-        {step.choices.map((choice, i) => {
+        {shuffled.shuffledChoices.map((choice, i) => {
           let className = 'choice-btn';
           if (answered) {
-            if (i === step.correct) className += ' correct';
+            if (i === shuffled.shuffledCorrect) className += ' correct';
             else if (i === selectedIndex) className += ' wrong';
             else className += ' dimmed';
           }
