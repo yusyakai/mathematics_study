@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { SUBJECTS, DIFFICULTIES } from '../data/categories';
 
@@ -15,12 +15,40 @@ function shuffleChoices(choices, correctIndex) {
   };
 }
 
+function useSwipeRight(onSwipe) {
+  const touchStart = useRef(null);
+  const touchEnd = useRef(null);
+  const MIN_SWIPE = 80;
+
+  const onTouchStart = useCallback((e) => {
+    touchEnd.current = null;
+    touchStart.current = e.targetTouches[0].clientX;
+  }, []);
+
+  const onTouchMove = useCallback((e) => {
+    touchEnd.current = e.targetTouches[0].clientX;
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    if (!touchStart.current || !touchEnd.current) return;
+    const distance = touchEnd.current - touchStart.current;
+    if (distance > MIN_SWIPE) {
+      onSwipe();
+    }
+    touchStart.current = null;
+    touchEnd.current = null;
+  }, [onSwipe]);
+
+  return { onTouchStart, onTouchMove, onTouchEnd };
+}
+
 export default function QuestionScreen() {
   const { state, dispatch, questions } = useApp();
   const [answered, setAnswered] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [timeLeft, setTimeLeft] = useState(state.timerMode ? 5 : null);
   const [timedOut, setTimedOut] = useState(false);
+  const [showSkipHint, setShowSkipHint] = useState(false);
 
   const qIdx = state.questionQueue[state.currentQuestionIndex];
   const question = questions[qIdx];
@@ -32,6 +60,22 @@ export default function QuestionScreen() {
   );
 
   const isCorrect = selectedIndex === shuffled.shuffledCorrect;
+
+  const handleSkip = useCallback(() => {
+    if (answered) return;
+    dispatch({ type: 'SKIP_QUESTION' });
+  }, [answered, dispatch]);
+
+  const swipeHandlers = useSwipeRight(handleSkip);
+
+  // スキップヒントを初回だけ表示
+  useEffect(() => {
+    if (state.currentQuestionIndex === 0 && state.currentStepIndex === 0) {
+      setShowSkipHint(true);
+      const timer = setTimeout(() => setShowSkipHint(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   useEffect(() => {
     if (!state.timerMode || answered) return;
@@ -67,7 +111,6 @@ export default function QuestionScreen() {
     setAnswered(true);
     dispatch({ type: 'ANSWER_STEP', selectedIndex: originalIndex });
 
-    // 不正解 → 少し待ってから解説ページへ遷移
     if (!correct) {
       setTimeout(() => {
         dispatch({ type: 'FAIL_QUESTION', selectedIndex: originalIndex });
@@ -85,7 +128,7 @@ export default function QuestionScreen() {
   const progress = ((state.currentStepIndex + 1) / question.steps.length) * 100;
 
   return (
-    <div className="question-screen">
+    <div className="question-screen" {...swipeHandlers}>
       <div className="question-header">
         <button className="back-btn" onClick={() => dispatch({ type: 'NAVIGATE', screen: 'home' })}>
           ✕
@@ -105,12 +148,23 @@ export default function QuestionScreen() {
             </span>
           </div>
         </div>
-        {state.timerMode && !answered && (
-          <div className={`timer ${timeLeft <= 2 ? 'timer-warning' : ''}`}>
-            {timeLeft}s
-          </div>
-        )}
+        <div className="header-right">
+          {state.timerMode && !answered && (
+            <div className={`timer ${timeLeft <= 2 ? 'timer-warning' : ''}`}>
+              {timeLeft}s
+            </div>
+          )}
+          {!answered && (
+            <button className="skip-btn" onClick={handleSkip} title="この問題をスキップ">
+              スキップ →
+            </button>
+          )}
+        </div>
       </div>
+
+      {showSkipHint && !answered && (
+        <div className="skip-hint">→ 右スワイプでスキップ</div>
+      )}
 
       <div className="progress-bar">
         <div className="progress-fill" style={{ width: `${progress}%` }} />
@@ -146,7 +200,6 @@ export default function QuestionScreen() {
         })}
       </div>
 
-      {/* 正解時のみインライン解説を表示 */}
       {answered && isCorrect && (
         <div className="feedback feedback-correct">
           <div className="feedback-header">⭕ 正解！</div>
@@ -162,7 +215,6 @@ export default function QuestionScreen() {
         </div>
       )}
 
-      {/* 不正解時は短い表示（すぐ解説ページへ遷移する） */}
       {answered && !isCorrect && (
         <div className="feedback feedback-wrong">
           {timedOut && <div className="timeout-badge">タイムアウト！</div>}

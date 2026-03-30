@@ -20,6 +20,7 @@ function saveState(state) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       mistakeHistory: state.mistakeHistory,
       completedQuestions: state.completedQuestions,
+      skippedQuestions: state.skippedQuestions,
       stats: state.stats,
     }));
   } catch {
@@ -47,6 +48,7 @@ const initialState = {
   // Persistent data
   mistakeHistory: [], // { questionId, stepIndex, selectedIndex, tags, timestamp }[]
   completedQuestions: [], // questionId[]
+  skippedQuestions: {}, // { [questionId]: timestamp } スキップした問題と時刻
   stats: { totalAnswered: 0, totalCorrect: 0 },
 };
 
@@ -56,6 +58,7 @@ function getInitialState() {
     ...initialState,
     mistakeHistory: saved?.mistakeHistory || [],
     completedQuestions: saved?.completedQuestions || [],
+    skippedQuestions: saved?.skippedQuestions || {},
     stats: saved?.stats || { totalAnswered: 0, totalCorrect: 0 },
   };
 }
@@ -67,7 +70,15 @@ function reducer(state, action) {
     }
 
     case 'START_PRACTICE': {
-      const indices = action.questionIndices || questions.map((_, i) => i);
+      const now = Date.now();
+      const SKIP_DURATION = 24 * 60 * 60 * 1000; // 24時間
+      const allIndices = action.questionIndices || questions.map((_, i) => i);
+      // スキップ済み（24時間以内）の問題を除外
+      const indices = allIndices.filter(i => {
+        const skipTime = state.skippedQuestions[questions[i].id];
+        return !skipTime || (now - skipTime) > SKIP_DURATION;
+      });
+      if (indices.length === 0) return { ...state, screen: 'home' };
       return {
         ...state,
         screen: 'question',
@@ -143,6 +154,31 @@ function reducer(state, action) {
       return {
         ...state,
         completedQuestions: newCompleted,
+        screen: 'result',
+      };
+    }
+
+    case 'SKIP_QUESTION': {
+      const qIdx = state.questionQueue[state.currentQuestionIndex];
+      const question = questions[qIdx];
+      const newSkipped = { ...state.skippedQuestions, [question.id]: Date.now() };
+
+      const nextQuestionIndex = state.currentQuestionIndex + 1;
+
+      if (nextQuestionIndex < state.questionQueue.length) {
+        return {
+          ...state,
+          skippedQuestions: newSkipped,
+          currentQuestionIndex: nextQuestionIndex,
+          currentStepIndex: 0,
+          stepResults: [],
+        };
+      }
+
+      // 最後の問題をスキップ → 結果画面へ
+      return {
+        ...state,
+        skippedQuestions: newSkipped,
         screen: 'result',
       };
     }
@@ -225,6 +261,7 @@ function reducer(state, action) {
         ...state,
         mistakeHistory: [],
         completedQuestions: [],
+        skippedQuestions: {},
         stats: { totalAnswered: 0, totalCorrect: 0 },
       };
     }
@@ -239,7 +276,7 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     saveState(state);
-  }, [state.mistakeHistory, state.completedQuestions, state.stats]);
+  }, [state.mistakeHistory, state.completedQuestions, state.skippedQuestions, state.stats]);
 
   return (
     <AppContext.Provider value={{ state, dispatch, questions }}>
