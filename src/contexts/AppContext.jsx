@@ -20,6 +20,7 @@ function saveState(state) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       mistakeHistory: state.mistakeHistory,
       completedQuestions: state.completedQuestions,
+      skippedQuestions: state.skippedQuestions,
       stats: state.stats,
     }));
   } catch {
@@ -29,7 +30,7 @@ function saveState(state) {
 
 const initialState = {
   // Navigation
-  screen: 'home', // 'home' | 'question' | 'result' | 'review'
+  screen: 'home', // 'home' | 'question' | 'result' | 'review' | 'explanation'
 
   // Question state
   currentQuestionIndex: 0,
@@ -41,9 +42,13 @@ const initialState = {
   timerMode: false,
   timerSeconds: 5,
 
+  // 不正解時の解説データ
+  explanationData: null, // { question, failedStepIndex, selectedIndex, stepResults }
+
   // Persistent data
   mistakeHistory: [], // { questionId, stepIndex, selectedIndex, tags, timestamp }[]
   completedQuestions: [], // questionId[]
+  skippedQuestions: {}, // { [questionId]: timestamp } スキップした問題と時刻
   stats: { totalAnswered: 0, totalCorrect: 0 },
 };
 
@@ -53,6 +58,7 @@ function getInitialState() {
     ...initialState,
     mistakeHistory: saved?.mistakeHistory || [],
     completedQuestions: saved?.completedQuestions || [],
+    skippedQuestions: saved?.skippedQuestions || {},
     stats: saved?.stats || { totalAnswered: 0, totalCorrect: 0 },
   };
 }
@@ -64,7 +70,15 @@ function reducer(state, action) {
     }
 
     case 'START_PRACTICE': {
-      const indices = action.questionIndices || questions.map((_, i) => i);
+      const now = Date.now();
+      const SKIP_DURATION = 24 * 60 * 60 * 1000; // 24時間
+      const allIndices = action.questionIndices || questions.map((_, i) => i);
+      // スキップ済み（24時間以内）の問題を除外
+      const indices = allIndices.filter(i => {
+        const skipTime = state.skippedQuestions[questions[i].id];
+        return !skipTime || (now - skipTime) > SKIP_DURATION;
+      });
+      if (indices.length === 0) return { ...state, screen: 'home' };
       return {
         ...state,
         screen: 'question',
@@ -144,6 +158,77 @@ function reducer(state, action) {
       };
     }
 
+    case 'SKIP_QUESTION': {
+      const qIdx = state.questionQueue[state.currentQuestionIndex];
+      const question = questions[qIdx];
+      const newSkipped = { ...state.skippedQuestions, [question.id]: Date.now() };
+
+      const nextQuestionIndex = state.currentQuestionIndex + 1;
+
+      if (nextQuestionIndex < state.questionQueue.length) {
+        return {
+          ...state,
+          skippedQuestions: newSkipped,
+          currentQuestionIndex: nextQuestionIndex,
+          currentStepIndex: 0,
+          stepResults: [],
+        };
+      }
+
+      // 最後の問題をスキップ → 結果画面へ
+      return {
+        ...state,
+        skippedQuestions: newSkipped,
+        screen: 'result',
+      };
+    }
+
+    case 'FAIL_QUESTION': {
+      // 不正解で問題終了 → 解説ページへ
+      const qIdx = state.questionQueue[state.currentQuestionIndex];
+      const question = questions[qIdx];
+      return {
+        ...state,
+        screen: 'explanation',
+        explanationData: {
+          question,
+          failedStepIndex: state.currentStepIndex,
+          selectedIndex: action.selectedIndex,
+          stepResults: state.stepResults,
+        },
+      };
+    }
+
+    case 'CONTINUE_AFTER_EXPLANATION': {
+      // 解説後 → 次の問題へ進む or 結果画面へ
+      const qIdx = state.questionQueue[state.currentQuestionIndex];
+      const question = questions[qIdx];
+      const newCompleted = state.completedQuestions.includes(question.id)
+        ? state.completedQuestions
+        : [...state.completedQuestions, question.id];
+
+      const nextQuestionIndex = state.currentQuestionIndex + 1;
+
+      if (nextQuestionIndex < state.questionQueue.length) {
+        return {
+          ...state,
+          completedQuestions: newCompleted,
+          screen: 'question',
+          currentQuestionIndex: nextQuestionIndex,
+          currentStepIndex: 0,
+          stepResults: [],
+          explanationData: null,
+        };
+      }
+
+      return {
+        ...state,
+        completedQuestions: newCompleted,
+        screen: 'result',
+        explanationData: null,
+      };
+    }
+
     case 'START_REVIEW': {
       // Find questions with mistakes in specific tags
       const targetTags = action.tags || [];
@@ -176,6 +261,7 @@ function reducer(state, action) {
         ...state,
         mistakeHistory: [],
         completedQuestions: [],
+        skippedQuestions: {},
         stats: { totalAnswered: 0, totalCorrect: 0 },
       };
     }
@@ -190,7 +276,7 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     saveState(state);
-  }, [state.mistakeHistory, state.completedQuestions, state.stats]);
+  }, [state.mistakeHistory, state.completedQuestions, state.skippedQuestions, state.stats]);
 
   return (
     <AppContext.Provider value={{ state, dispatch, questions }}>

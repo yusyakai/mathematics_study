@@ -1,22 +1,45 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { SUBJECTS, DIFFICULTIES } from '../data/categories';
 
-// 配列をシャッフルしてインデックスマッピングを返す
 function shuffleChoices(choices, correctIndex) {
   const indices = choices.map((_, i) => i);
-  // Fisher-Yates shuffle
   for (let i = indices.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [indices[i], indices[j]] = [indices[j], indices[i]];
   }
   return {
     shuffledChoices: indices.map(i => choices[i]),
-    // シャッフル後の正解位置
     shuffledCorrect: indices.indexOf(correctIndex),
-    // シャッフル後のインデックス → 元のインデックス
     indexMap: indices,
   };
+}
+
+function useSwipeRight(onSwipe) {
+  const touchStart = useRef(null);
+  const touchEnd = useRef(null);
+  const MIN_SWIPE = 80;
+
+  const onTouchStart = useCallback((e) => {
+    touchEnd.current = null;
+    touchStart.current = e.targetTouches[0].clientX;
+  }, []);
+
+  const onTouchMove = useCallback((e) => {
+    touchEnd.current = e.targetTouches[0].clientX;
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    if (!touchStart.current || !touchEnd.current) return;
+    const distance = touchEnd.current - touchStart.current;
+    if (distance > MIN_SWIPE) {
+      onSwipe();
+    }
+    touchStart.current = null;
+    touchEnd.current = null;
+  }, [onSwipe]);
+
+  return { onTouchStart, onTouchMove, onTouchEnd };
 }
 
 export default function QuestionScreen() {
@@ -25,12 +48,12 @@ export default function QuestionScreen() {
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [timeLeft, setTimeLeft] = useState(state.timerMode ? 5 : null);
   const [timedOut, setTimedOut] = useState(false);
+  const [showSkipHint, setShowSkipHint] = useState(false);
 
   const qIdx = state.questionQueue[state.currentQuestionIndex];
   const question = questions[qIdx];
   const step = question.steps[state.currentStepIndex];
 
-  // STEPが変わるたびに選択肢をシャッフル
   const shuffled = useMemo(
     () => shuffleChoices(step.choices, step.correct),
     [state.currentQuestionIndex, state.currentStepIndex]
@@ -38,7 +61,22 @@ export default function QuestionScreen() {
 
   const isCorrect = selectedIndex === shuffled.shuffledCorrect;
 
-  // Timer logic
+  const handleSkip = useCallback(() => {
+    if (answered) return;
+    dispatch({ type: 'SKIP_QUESTION' });
+  }, [answered, dispatch]);
+
+  const swipeHandlers = useSwipeRight(handleSkip);
+
+  // スキップヒントを初回だけ表示
+  useEffect(() => {
+    if (state.currentQuestionIndex === 0 && state.currentStepIndex === 0) {
+      setShowSkipHint(true);
+      const timer = setTimeout(() => setShowSkipHint(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   useEffect(() => {
     if (!state.timerMode || answered) return;
     setTimeLeft(5);
@@ -57,7 +95,6 @@ export default function QuestionScreen() {
     return () => clearInterval(interval);
   }, [state.currentStepIndex, state.currentQuestionIndex, state.timerMode, answered]);
 
-  // Handle timeout
   useEffect(() => {
     if (state.timerMode && timeLeft === 0 && !answered) {
       setTimedOut(true);
@@ -68,11 +105,18 @@ export default function QuestionScreen() {
   const handleAnswer = useCallback((displayIndex) => {
     if (answered) return;
     setSelectedIndex(displayIndex);
-    // 元のインデックスに変換してdispatch
     const originalIndex = displayIndex >= 0 ? shuffled.indexMap[displayIndex] : -1;
+    const correct = originalIndex === step.correct;
+
     setAnswered(true);
     dispatch({ type: 'ANSWER_STEP', selectedIndex: originalIndex });
-  }, [answered, dispatch, shuffled.indexMap]);
+
+    if (!correct) {
+      setTimeout(() => {
+        dispatch({ type: 'FAIL_QUESTION', selectedIndex: originalIndex });
+      }, 1200);
+    }
+  }, [answered, dispatch, shuffled.indexMap, step.correct]);
 
   const handleNext = () => {
     setAnswered(false);
@@ -84,7 +128,7 @@ export default function QuestionScreen() {
   const progress = ((state.currentStepIndex + 1) / question.steps.length) * 100;
 
   return (
-    <div className="question-screen">
+    <div className="question-screen" {...swipeHandlers}>
       <div className="question-header">
         <button className="back-btn" onClick={() => dispatch({ type: 'NAVIGATE', screen: 'home' })}>
           ✕
@@ -104,12 +148,23 @@ export default function QuestionScreen() {
             </span>
           </div>
         </div>
-        {state.timerMode && !answered && (
-          <div className={`timer ${timeLeft <= 2 ? 'timer-warning' : ''}`}>
-            {timeLeft}s
-          </div>
-        )}
+        <div className="header-right">
+          {state.timerMode && !answered && (
+            <div className={`timer ${timeLeft <= 2 ? 'timer-warning' : ''}`}>
+              {timeLeft}s
+            </div>
+          )}
+          {!answered && (
+            <button className="skip-btn" onClick={handleSkip} title="この問題をスキップ">
+              スキップ →
+            </button>
+          )}
+        </div>
       </div>
+
+      {showSkipHint && !answered && (
+        <div className="skip-hint">→ 右スワイプでスキップ</div>
+      )}
 
       <div className="progress-bar">
         <div className="progress-fill" style={{ width: `${progress}%` }} />
@@ -145,17 +200,10 @@ export default function QuestionScreen() {
         })}
       </div>
 
-      {answered && (
-        <div className={`feedback ${isCorrect ? 'feedback-correct' : 'feedback-wrong'}`}>
-          {timedOut && (
-            <div className="timeout-badge">タイムアウト！</div>
-          )}
-          <div className="feedback-header">
-            {isCorrect ? '⭕ 正解！' : '❌ 不正解'}
-          </div>
-          <p className="feedback-text">
-            {isCorrect ? step.explanation_correct : step.explanation_wrong}
-          </p>
+      {answered && isCorrect && (
+        <div className="feedback feedback-correct">
+          <div className="feedback-header">⭕ 正解！</div>
+          <p className="feedback-text">{step.explanation_correct}</p>
           <button className="next-btn" onClick={handleNext}>
             {state.currentStepIndex + 1 < question.steps.length
               ? '次のSTEPへ'
@@ -164,6 +212,14 @@ export default function QuestionScreen() {
                 : '結果を見る'
             }
           </button>
+        </div>
+      )}
+
+      {answered && !isCorrect && (
+        <div className="feedback feedback-wrong">
+          {timedOut && <div className="timeout-badge">タイムアウト！</div>}
+          <div className="feedback-header">❌ 不正解</div>
+          <p className="feedback-text feedback-text-transition">詳しい解説を表示します…</p>
         </div>
       )}
     </div>
