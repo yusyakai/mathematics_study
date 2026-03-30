@@ -791,3 +791,259 @@
   width: 100%;
   justify-content: center;
 }
+
+/* ============= Explanation Screen ============= */
+.explanation-screen {
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.explanation-header {
+  text-align: center;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--danger);
+}
+
+.explanation-badge {
+  display: inline-block;
+  background: var(--danger);
+  color: white;
+  padding: 4px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.explanation-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.explanation-meta {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.explanation-problem {
+  background: #f1f5f9;
+  border-radius: var(--radius-sm);
+  padding: 16px;
+}
+
+.explanation-problem h2 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.explanation-problem p {
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.explanation-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.explanation-section h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.explanation-main h2 {
+  color: var(--danger);
+  border-bottom-color: var(--danger);
+}
+
+/* 正解したSTEP */
+.explanation-step-ok {
+  padding: 12px 16px;
+  background: #ecfdf5;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--success);
+}
+
+.explanation-step-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.explanation-step-q {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.explanation-step-a {
+  font-size: 13px;
+  color: var(--success);
+  font-weight: 600;
+}
+
+/* 間違えたSTEP メイン */
+.explanation-q-block {
+  background: #fef2f2;
+  border: 2px solid var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+}
+
+.explanation-q-block .explanation-step-q {
+  font-size: 16px;
+}
+
+.explanation-answer-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.explanation-your-answer,
+.explanation-correct-answer {
+  padding: 14px;
+  border-radius: var(--radius-sm);
+}
+
+.explanation-your-answer {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.explanation-correct-answer {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+
+.explanation-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.wrong-label {
+  color: var(--danger);
+}
+
+.correct-label {
+  color: var(--success);
+}
+
+.explanation-your-answer p,
+.explanation-correct-answer p {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.explanation-detail {
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+}
+
+.explanation-detail h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--danger);
+}
+
+.correct-detail h3 {
+  color: var(--success);
+}
+
+.explanation-detail p {
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+/* 各選択肢の解説 */
+.explanation-all-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.explanation-all-choices h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.explanation-choice-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.explanation-choice-item.is-correct {
+  background: #ecfdf5;
+  border-color: var(--success);
+  font-weight: 600;
+}
+
+.explanation-choice-item.is-selected:not(.is-correct) {
+  background: #fef2f2;
+  border-color: var(--danger);
+}
+
+.explanation-choice-marker {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.your-pick {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* 残りSTEPプレビュー */
+.explanation-step-preview {
+  padding: 14px 16px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--border);
+}
+
+.explanation-step-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-top: 4px;
+}
+
+.explanation-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.feedback-text-transition {
+  color: var(--text-secondary);
+  font-style: italic;
+}

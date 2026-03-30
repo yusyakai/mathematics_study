@@ -2,19 +2,15 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { SUBJECTS, DIFFICULTIES } from '../data/categories';
 
-// 配列をシャッフルしてインデックスマッピングを返す
 function shuffleChoices(choices, correctIndex) {
   const indices = choices.map((_, i) => i);
-  // Fisher-Yates shuffle
   for (let i = indices.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [indices[i], indices[j]] = [indices[j], indices[i]];
   }
   return {
     shuffledChoices: indices.map(i => choices[i]),
-    // シャッフル後の正解位置
     shuffledCorrect: indices.indexOf(correctIndex),
-    // シャッフル後のインデックス → 元のインデックス
     indexMap: indices,
   };
 }
@@ -30,7 +26,6 @@ export default function QuestionScreen() {
   const question = questions[qIdx];
   const step = question.steps[state.currentStepIndex];
 
-  // STEPが変わるたびに選択肢をシャッフル
   const shuffled = useMemo(
     () => shuffleChoices(step.choices, step.correct),
     [state.currentQuestionIndex, state.currentStepIndex]
@@ -38,7 +33,6 @@ export default function QuestionScreen() {
 
   const isCorrect = selectedIndex === shuffled.shuffledCorrect;
 
-  // Timer logic
   useEffect(() => {
     if (!state.timerMode || answered) return;
     setTimeLeft(5);
@@ -57,7 +51,6 @@ export default function QuestionScreen() {
     return () => clearInterval(interval);
   }, [state.currentStepIndex, state.currentQuestionIndex, state.timerMode, answered]);
 
-  // Handle timeout
   useEffect(() => {
     if (state.timerMode && timeLeft === 0 && !answered) {
       setTimedOut(true);
@@ -68,11 +61,19 @@ export default function QuestionScreen() {
   const handleAnswer = useCallback((displayIndex) => {
     if (answered) return;
     setSelectedIndex(displayIndex);
-    // 元のインデックスに変換してdispatch
     const originalIndex = displayIndex >= 0 ? shuffled.indexMap[displayIndex] : -1;
+    const correct = originalIndex === step.correct;
+
     setAnswered(true);
     dispatch({ type: 'ANSWER_STEP', selectedIndex: originalIndex });
-  }, [answered, dispatch, shuffled.indexMap]);
+
+    // 不正解 → 少し待ってから解説ページへ遷移
+    if (!correct) {
+      setTimeout(() => {
+        dispatch({ type: 'FAIL_QUESTION', selectedIndex: originalIndex });
+      }, 1200);
+    }
+  }, [answered, dispatch, shuffled.indexMap, step.correct]);
 
   const handleNext = () => {
     setAnswered(false);
@@ -145,17 +146,11 @@ export default function QuestionScreen() {
         })}
       </div>
 
-      {answered && (
-        <div className={`feedback ${isCorrect ? 'feedback-correct' : 'feedback-wrong'}`}>
-          {timedOut && (
-            <div className="timeout-badge">タイムアウト！</div>
-          )}
-          <div className="feedback-header">
-            {isCorrect ? '⭕ 正解！' : '❌ 不正解'}
-          </div>
-          <p className="feedback-text">
-            {isCorrect ? step.explanation_correct : step.explanation_wrong}
-          </p>
+      {/* 正解時のみインライン解説を表示 */}
+      {answered && isCorrect && (
+        <div className="feedback feedback-correct">
+          <div className="feedback-header">⭕ 正解！</div>
+          <p className="feedback-text">{step.explanation_correct}</p>
           <button className="next-btn" onClick={handleNext}>
             {state.currentStepIndex + 1 < question.steps.length
               ? '次のSTEPへ'
@@ -164,6 +159,15 @@ export default function QuestionScreen() {
                 : '結果を見る'
             }
           </button>
+        </div>
+      )}
+
+      {/* 不正解時は短い表示（すぐ解説ページへ遷移する） */}
+      {answered && !isCorrect && (
+        <div className="feedback feedback-wrong">
+          {timedOut && <div className="timeout-badge">タイムアウト！</div>}
+          <div className="feedback-header">❌ 不正解</div>
+          <p className="feedback-text feedback-text-transition">詳しい解説を表示します…</p>
         </div>
       )}
     </div>

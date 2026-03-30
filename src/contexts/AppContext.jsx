@@ -29,7 +29,7 @@ function saveState(state) {
 
 const initialState = {
   // Navigation
-  screen: 'home', // 'home' | 'question' | 'result' | 'review'
+  screen: 'home', // 'home' | 'question' | 'result' | 'review' | 'explanation'
 
   // Question state
   currentQuestionIndex: 0,
@@ -40,6 +40,9 @@ const initialState = {
   // Timer mode
   timerMode: false,
   timerSeconds: 5,
+
+  // 不正解時の解説データ
+  explanationData: null, // { question, failedStepIndex, selectedIndex, stepResults }
 
   // Persistent data
   mistakeHistory: [], // { questionId, stepIndex, selectedIndex, tags, timestamp }[]
@@ -141,6 +144,52 @@ function reducer(state, action) {
         ...state,
         completedQuestions: newCompleted,
         screen: 'result',
+      };
+    }
+
+    case 'FAIL_QUESTION': {
+      // 不正解で問題終了 → 解説ページへ
+      const qIdx = state.questionQueue[state.currentQuestionIndex];
+      const question = questions[qIdx];
+      return {
+        ...state,
+        screen: 'explanation',
+        explanationData: {
+          question,
+          failedStepIndex: state.currentStepIndex,
+          selectedIndex: action.selectedIndex,
+          stepResults: state.stepResults,
+        },
+      };
+    }
+
+    case 'CONTINUE_AFTER_EXPLANATION': {
+      // 解説後 → 次の問題へ進む or 結果画面へ
+      const qIdx = state.questionQueue[state.currentQuestionIndex];
+      const question = questions[qIdx];
+      const newCompleted = state.completedQuestions.includes(question.id)
+        ? state.completedQuestions
+        : [...state.completedQuestions, question.id];
+
+      const nextQuestionIndex = state.currentQuestionIndex + 1;
+
+      if (nextQuestionIndex < state.questionQueue.length) {
+        return {
+          ...state,
+          completedQuestions: newCompleted,
+          screen: 'question',
+          currentQuestionIndex: nextQuestionIndex,
+          currentStepIndex: 0,
+          stepResults: [],
+          explanationData: null,
+        };
+      }
+
+      return {
+        ...state,
+        completedQuestions: newCompleted,
+        screen: 'result',
+        explanationData: null,
       };
     }
 

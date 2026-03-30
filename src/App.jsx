@@ -3,6 +3,7 @@ import HomeScreen from './components/HomeScreen';
 import QuestionScreen from './components/QuestionScreen';
 import ResultScreen from './components/ResultScreen';
 import ReviewScreen from './components/ReviewScreen';
+import ExplanationScreen from './components/ExplanationScreen';
 import './App.css';
 
 function Router() {
@@ -17,6 +18,8 @@ function Router() {
       return <ResultScreen />;
     case 'review':
       return <ReviewScreen />;
+    case 'explanation':
+      return <ExplanationScreen />;
     default:
       return <HomeScreen />;
   }
