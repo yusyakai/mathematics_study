@@ -239,12 +239,32 @@ export default function HomeScreen() {
       )}
 
       <footer className="home-footer">
-        <button
-          className="link-btn"
-          onClick={() => dispatch({ type: 'NAVIGATE', screen: 'review' })}
-        >
-          学習履歴を見る
-        </button>
+        <div className="footer-links">
+          <button
+            className="footer-link-btn"
+            onClick={() => dispatch({ type: 'NAVIGATE', screen: 'progress' })}
+          >
+            📊 分野別進捗
+          </button>
+          <button
+            className="footer-link-btn"
+            onClick={() => dispatch({ type: 'NAVIGATE', screen: 'calendar' })}
+          >
+            📅 学習カレンダー
+          </button>
+          <button
+            className="footer-link-btn"
+            onClick={() => dispatch({ type: 'NAVIGATE', screen: 'formula' })}
+          >
+            📐 公式集
+          </button>
+          <button
+            className="footer-link-btn"
+            onClick={() => dispatch({ type: 'NAVIGATE', screen: 'review' })}
+          >
+            📝 学習履歴
+          </button>
+        </div>
       </footer>
     </div>
   );
