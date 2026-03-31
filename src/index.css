@@ -16,6 +16,23 @@
   --radius-sm: 8px;
 }
 
+/* ダークモード */
+[data-theme="dark"] {
+  --primary: #818cf8;
+  --primary-light: #a5b4fc;
+  --primary-dark: #6366f1;
+  --accent: #fbbf24;
+  --accent-dark: #f59e0b;
+  --success: #34d399;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --text: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --border: #334155;
+}
+
 * {
   margin: 0;
   padding: 0;

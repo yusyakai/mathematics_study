@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { SUBJECTS, DIFFICULTIES } from '../data/categories';
+import MathText from './MathText';
 
 function shuffleChoices(choices, correctIndex) {
   const indices = choices.map((_, i) => i);
@@ -171,11 +172,11 @@ export default function QuestionScreen() {
       </div>
 
       <div className="problem-text">
-        <p>{question.problem}</p>
+        <p><MathText text={question.problem} /></p>
       </div>
 
       <div className="step-question">
-        <h2>{step.question}</h2>
+        <h2><MathText text={step.question} /></h2>
       </div>
 
       <div className="choices">
@@ -194,7 +195,7 @@ export default function QuestionScreen() {
               disabled={answered}
             >
               <span className="choice-label">{String.fromCharCode(65 + i)}</span>
-              <span className="choice-text">{choice}</span>
+              <span className="choice-text"><MathText text={choice} /></span>
             </button>
           );
         })}
@@ -203,7 +204,7 @@ export default function QuestionScreen() {
       {answered && isCorrect && (
         <div className="feedback feedback-correct">
           <div className="feedback-header">⭕ 正解！</div>
-          <p className="feedback-text">{step.explanation_correct}</p>
+          <p className="feedback-text"><MathText text={step.explanation_correct} /></p>
           <button className="next-btn" onClick={handleNext}>
             {state.currentStepIndex + 1 < question.steps.length
               ? '次のSTEPへ'
