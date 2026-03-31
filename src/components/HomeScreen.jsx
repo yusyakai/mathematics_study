@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useApp } from '../contexts/AppContext';
+import { useApp, DAILY_GOAL, calculateStreak, getSrsQuestions } from '../contexts/AppContext';
 import { SUBJECTS, DIFFICULTIES, DIFFICULTY_ORDER } from '../data/categories';
 
 export default function HomeScreen() {
@@ -11,6 +11,21 @@ export default function HomeScreen() {
   const accuracy = state.stats.totalAnswered > 0
     ? Math.round((state.stats.totalCorrect / state.stats.totalAnswered) * 100)
     : 0;
+
+  // ストリーク
+  const streak = calculateStreak(state.learningDays);
+
+  // デイリー目標
+  const today = new Date().toISOString().slice(0, 10);
+  const dailyAnswered = state.dailyProgress.date === today
+    ? state.dailyProgress.questionsAnswered
+    : 0;
+  const dailyComplete = dailyAnswered >= DAILY_GOAL;
+  const dailyPercent = Math.min(100, Math.round((dailyAnswered / DAILY_GOAL) * 100));
+
+  // SRS復習の問題数
+  const srsQuestionIds = getSrsQuestions(state.mistakeHistory);
+  const srsCount = srsQuestionIds.size;
 
   // 科目でフィルタリング
   const filteredBySubject = selectedSubject
@@ -46,6 +61,33 @@ export default function HomeScreen() {
         <p className="subtitle">解法選択力を鍛える数学トレーニング</p>
       </header>
 
+      {/* ストリーク & デイリー目標 */}
+      <div className="streak-daily-card">
+        <div className="streak-section">
+          <div className="streak-flame">{streak > 0 ? '🔥' : '💤'}</div>
+          <div className="streak-info">
+            <span className="streak-count">{streak}</span>
+            <span className="streak-label">日連続</span>
+          </div>
+        </div>
+        <div className="daily-section">
+          <div className="daily-header">
+            <span className="daily-title">今日の目標</span>
+            <span className="daily-count">
+              {dailyAnswered} / {DAILY_GOAL}問
+              {dailyComplete && ' ✅'}
+            </span>
+          </div>
+          <div className="daily-bar">
+            <div
+              className={`daily-bar-fill ${dailyComplete ? 'complete' : ''}`}
+              style={{ width: `${dailyPercent}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 統計カード */}
       {state.stats.totalAnswered > 0 && (
         <div className="stats-card">
           <div className="stat">
@@ -61,6 +103,18 @@ export default function HomeScreen() {
             <span className="stat-label">完了問題</span>
           </div>
         </div>
+      )}
+
+      {/* SRS復習ボタン */}
+      {srsCount > 0 && (
+        <button
+          className="menu-btn srs"
+          onClick={() => dispatch({ type: 'START_SRS_REVIEW' })}
+        >
+          <span className="menu-btn-icon">🧠</span>
+          復習タイミングの問題
+          <span className="menu-btn-sub">{srsCount}問</span>
+        </button>
       )}
 
       {/* 難易度フィルター */}
