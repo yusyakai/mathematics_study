@@ -1,0 +1,365 @@
+/* ============= 思考プロセス（AR試作） ============= */
+.thinking-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding-bottom: 16px;
+}
+
+.thinking-intro {
+  margin: 12px 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.thinking-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.thinking-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: var(--bg);
+}
+
+.thinking-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.thinking-item-title {
+  font-weight: 700;
+}
+
+.thinking-item-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.thinking-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--primary-light);
+  color: #fff;
+}
+
+.thinking-badge.warn {
+  background: var(--warning);
+}
+
+.thinking-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.thinking-item-actions button,
+.thinking-item-actions .button-link,
+.step-buttons button {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.thinking-item-actions .primary,
+.step-buttons .primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.step-buttons button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.thinking-invalid {
+  margin: 16px 20px;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+/* 2D表示 */
+.thinking-problem {
+  margin: 16px 20px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 2;
+}
+
+.thinking-problem mark {
+  background: color-mix(in srgb, var(--mark) 30%, transparent);
+  border-bottom: 3px solid var(--mark);
+  color: inherit;
+  padding: 0 2px;
+}
+
+.thinking-problem mark sup {
+  color: var(--mark);
+  margin-right: 2px;
+}
+
+.thinking-stages {
+  flex: 1;
+  padding: 0 20px;
+}
+
+.thinking-stages h3 {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 12px 0 6px;
+}
+
+.thought-node {
+  border: 2px solid var(--primary-light);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  animation: thought-in 0.3s ease;
+}
+
+.thought-node.adopted {
+  border-color: var(--success);
+}
+
+.thought-node.rejected {
+  border-style: dashed;
+  border-color: var(--text-secondary);
+  color: var(--text-secondary);
+}
+
+.thought-text {
+  font-weight: 700;
+}
+
+.thought-sub {
+  font-size: 13px;
+  margin-top: 4px;
+  color: var(--success);
+}
+
+.thought-node.rejected .thought-sub {
+  color: var(--danger);
+}
+
+.thought-from {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.ref-chip,
+.trigger-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.ref-chip.node {
+  background: var(--border);
+  color: var(--text-secondary);
+}
+
+@keyframes thought-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+/* 段階の操作 */
+.step-controls {
+  margin: 12px 20px 0;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.step-caption p {
+  margin: 4px 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.step-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.step-note {
+  color: var(--danger);
+}
+
+.step-triggers {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+  font-size: 14px;
+}
+
+.step-triggers li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.step-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* カード表示 */
+.thinking-card-img {
+  width: calc(100% - 40px);
+  margin: 16px 20px 0;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.card-view .thinking-item-actions {
+  margin: 0 20px;
+}
+
+@media print {
+  .card-view .review-header,
+  .card-view .thinking-intro,
+  .card-view .thinking-item-actions,
+  .theme-toggle {
+    display: none;
+  }
+  .thinking-card-img {
+    width: 100%;
+    margin: 0;
+    box-shadow: none;
+  }
+}
+
+/* AR表示（画面全体） */
+.ar-view {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #000;
+  color: #fff;
+}
+
+.ar-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.ar-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+}
+
+.ar-back {
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.7);
+  color: #fff;
+  font-size: 14px;
+}
+
+.ar-tracking {
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.ar-tracking.on {
+  background: rgba(16, 185, 129, 0.85);
+}
+
+.ar-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.ar-error {
+  color: #fca5a5;
+  pointer-events: auto;
+}
+
+.ar-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.ar-bottom .step-controls {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: transparent;
+  color: #fff;
+}
+
+.ar-bottom .step-count {
+  color: #cbd5e1;
+}
+
+.ar-bottom .step-buttons button:not(.primary) {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: transparent;
+  color: #fff;
+}
+
+.thinking-screen .review-header {
+  padding: 16px 20px;
+  margin-bottom: 0;
+}
+
+.thinking-screen .review-header h2 {
+  font-size: 18px;
+  padding-right: 48px; /* テーマ切替ボタンと重ならないように */
+}
+
+.thinking-item-actions button,
+.thinking-item-actions .button-link {
+  white-space: nowrap;
+}

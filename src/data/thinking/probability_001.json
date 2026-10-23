@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "probability_001",
+  "questionId": "probability_001",
+  "title": "確率 基本",
+  "subject": "数学A",
+  "unit": "確率",
+  "difficulty": "C",
+  "problem": "赤玉3個、白玉5個が入った袋から2個取り出すとき、2個とも赤玉である確率を求めよ。",
+  "triggers": [
+    { "id": "t1", "quote": "赤玉3個、白玉5個", "note": "全部で8個。玉は区別して考える" },
+    { "id": "t2", "quote": "2個取り出す", "note": "同時に取り出す → 順番は関係ない" },
+    { "id": "t3", "quote": "2個とも赤玉", "note": "赤3個から2個を選ぶ場合" }
+  ],
+  "thoughts": [
+    { "id": "n1", "stage": "notice", "from": ["t2"], "text": "順序を区別しない選び方 → 組合せ C" },
+    { "id": "n2", "stage": "strategy", "from": ["n1", "t1", "t3"], "text": "(赤から2個の選び方) ÷ (全体から2個の選び方)", "adopted": true },
+    { "id": "n3", "stage": "strategy", "from": ["n1"], "text": "順列 P で数える", "adopted": false, "reason": "分母・分子の両方で順序を数えれば同じ答えだが、混在すると誤りやすい" },
+    { "id": "n4", "stage": "execute", "from": ["n2"], "text": "₃C₂ / ₈C₂ = 3/28" }
+  ],
+  "meta": { "source": "manual", "reviewed": true }
+}

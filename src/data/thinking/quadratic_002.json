@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "quadratic_002",
+  "questionId": "quadratic_002",
+  "title": "二次関数 定義域制限",
+  "subject": "数学I",
+  "unit": "二次関数",
+  "difficulty": "B",
+  "problem": "y = x² − 2x + 3 (0 ≤ x ≤ 3) の最大値と最小値を求めよ。",
+  "triggers": [
+    { "id": "t1", "quote": "y = x² − 2x + 3", "note": "x² の係数が正 → 下に凸の放物線" },
+    { "id": "t2", "quote": "(0 ≤ x ≤ 3)", "note": "定義域が制限されている" },
+    { "id": "t3", "quote": "最大値と最小値", "note": "両方を求める → 頂点と両端の比較が必要" }
+  ],
+  "thoughts": [
+    { "id": "n1", "stage": "notice", "from": ["t1"], "text": "平方完成すれば頂点がわかる" },
+    { "id": "n2", "stage": "notice", "from": ["t2", "t3"], "text": "頂点が定義域の中か外かで最大・最小の位置が変わる" },
+    { "id": "n3", "stage": "strategy", "from": ["n1", "n2"], "text": "平方完成 → 頂点と定義域の位置関係をグラフで確認", "adopted": true },
+    { "id": "n4", "stage": "strategy", "from": ["n2"], "text": "両端 x=0, 3 の値だけを比べる", "adopted": false, "reason": "頂点が定義域内にあると最小値を見落とす" },
+    { "id": "n5", "stage": "execute", "from": ["n3"], "text": "y = (x−1)² + 2。最小値 2 (x=1)、頂点から遠い x=3 で最大値 6" }
+  ],
+  "meta": { "source": "manual", "reviewed": true }
+}
