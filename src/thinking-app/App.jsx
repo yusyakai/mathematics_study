@@ -1,14 +1,11 @@
 import { useState } from 'react';
-import { useApp } from '../../contexts/AppContext';
-import { thinkingProblems, invalidThinking } from '../../thinking/loadThinking';
-import Thinking2DView from './Thinking2DView';
-import ThinkingARView from './ThinkingARView';
-import ThinkingCardView from './ThinkingCardView';
-import './thinking.css';
+import { thinkingProblems, invalidThinking } from './lib/loadThinking';
+import Thinking2DView from './components/Thinking2DView';
+import ThinkingARView from './components/ThinkingARView';
+import ThinkingCardView from './components/ThinkingCardView';
 
-// 思考プロセス表示（AR試作）の入口。問題一覧と各表示モードを切り替える
-export default function ThinkingScreen() {
-  const { dispatch } = useApp();
+// 着眼点トレーナー: 問題一覧と各表示モードを切り替える
+export default function App() {
   const [view, setView] = useState({ mode: 'list', problem: null });
   const back = () => setView({ mode: 'list', problem: null });
 
@@ -18,13 +15,12 @@ export default function ThinkingScreen() {
 
   return (
     <div className="thinking-screen">
-      <div className="review-header">
-        <button className="back-btn" onClick={() => dispatch({ type: 'NAVIGATE', screen: 'home' })}>←</button>
-        <h2>思考プロセス（AR試作）</h2>
-      </div>
+      <header className="app-header">
+        <h1>着眼点トレーナー</h1>
+      </header>
 
       <p className="thinking-intro">
-        問題文のどこから見るか、そこに何が書いてある（書いていない）から何を考えるかを、注目箇所ごとに表示します。
+        問題文のどこから見るか、そこに書いてあることから何を考えるかを、注目箇所ごとに1つずつ表示します。
         ARで見るときは、問題カードを印刷するかPCの画面に表示し、スマホのカメラを向けてください。
       </p>
 

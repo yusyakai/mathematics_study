@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 3,
+  "id": "symmetry_001",
+  "title": "対称式 基本",
+  "subject": "数学I",
+  "unit": "数と式",
+  "difficulty": "C",
+  "problem": "x + y = 3, xy = 2 のとき、x² + y² の値を求めよ。",
+  "focuses": [
+    {
+      "id": "f1",
+      "quote": "x² + y² の値を求めよ",
+      "priority": 1,
+      "insights": [
+        { "priority": 1, "cue": "x² + y²", "thought": "x と y を入れ替えても変わらない式 → 対称式" },
+        { "priority": 2, "cue": "x² + y² の値", "thought": "求めるのは式の値だけ → x, y を1つずつ求めなくてよい" },
+        { "priority": 3, "cue": "x² + y²", "thought": "2乗の和は (x + y)² を展開したときに出てくる形" }
+      ]
+    },
+    {
+      "id": "f2",
+      "quote": "x + y = 3, xy = 2",
+      "priority": 2,
+      "insights": [
+        { "priority": 1, "cue": "x + y と xy", "thought": "和と積（基本対称式）が分かっている → 対称式は和と積だけで表せる" },
+        { "priority": 2, "cue": "x + y = 3", "thought": "(x + y)² = x² + 2xy + y² より x² + y² = (x + y)² − 2xy" },
+        { "priority": 3, "cue": "xy = 2", "thought": "2xy = 4 なので、3² から 4 を引けばよい" }
+      ]
+    }
+  ],
+  "meta": { "source": "manual", "reviewed": true }
+}

@@ -1,11 +1,11 @@
-// 思考プロセスデータ (src/data/thinking/*.json) を検証する
+// 思考プロセスデータ (src/thinking-app/data/*.json) を検証する
 // 使い方: npm run validate:thinking [ファイル...]
 // 手作業で編集したときも、AIで生成したときも、取り込む前にこれを通す
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { validateThinking } from '../src/thinking/schema.js';
+import { validateThinking } from '../src/thinking-app/lib/schema.js';
 
-const DIR = 'src/data/thinking';
+const DIR = 'src/thinking-app/data';
 const files = process.argv.slice(2).length
   ? process.argv.slice(2)
   : readdirSync(DIR).filter(f => f.endsWith('.json')).map(f => join(DIR, f));

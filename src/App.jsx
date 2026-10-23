@@ -8,7 +8,6 @@ import ExplanationScreen from './components/ExplanationScreen';
 import ProgressScreen from './components/ProgressScreen';
 import CalendarScreen from './components/CalendarScreen';
 import FormulaScreen from './components/FormulaScreen';
-import ThinkingScreen from './components/thinking/ThinkingScreen';
 import './App.css';
 
 function Router() {
@@ -31,8 +30,6 @@ function Router() {
       return <CalendarScreen />;
     case 'formula':
       return <FormulaScreen />;
-    case 'thinking':
-      return <ThinkingScreen />;
     default:
       return <HomeScreen />;
   }

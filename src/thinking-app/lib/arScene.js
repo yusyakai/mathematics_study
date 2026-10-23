@@ -100,38 +100,55 @@ export async function startAR({ container, problem, onStatus, onTracking, onSele
   highlight.mesh.position.z = 0.002;
   anchor.group.add(highlight.mesh);
 
-  // 注目箇所ごとの吹き出し（カードの上に少し手前へ浮かべ、注目箇所から線でつなぐ）
+  // 開いている注目箇所の吹き出し（カードの上に少し手前へ浮かべ、注目箇所から線でつなぐ）
+  // 気づきが1個増えるたびに描き直す
   const bubbleScale = 0.9 / BUBBLE_W;
+  const bubbleBottom = new THREE.Vector3(0, cardH / 2 + 0.05, 0.1);
   const lineGeometry = new THREE.CylinderGeometry(0.004, 0.004, 1, 8);
-  disposables.push(lineGeometry);
-  const bubbles = Object.fromEntries(problem.focuses.map((f, i) => {
-    const canvas = renderBubble(problem, i);
-    const h = canvas.height * bubbleScale;
-    const plane = texturePlane(canvas, BUBBLE_W * bubbleScale, h);
-    plane.mesh.position.set(0, cardH / 2 + 0.05 + h / 2, 0.1);
-    plane.mesh.visible = false;
-    anchor.group.add(plane.mesh);
+  const lineMaterial = new THREE.MeshBasicMaterial();
+  const line = new THREE.Mesh(lineGeometry, lineMaterial);
+  line.visible = false;
+  anchor.group.add(line);
+  disposables.push(lineGeometry, lineMaterial);
+  let bubble = null; // { key, mesh, dispose }
 
-    const r = card.focuses[i].rects[0];
-    const start = toCard(r.x + r.w / 2, r.y, 0.004);
-    const end = new THREE.Vector3(0, cardH / 2 + 0.05, 0.1);
-    const material = new THREE.MeshBasicMaterial({ color: focusColor(i) });
-    disposables.push(material);
-    const line = new THREE.Mesh(lineGeometry, material);
-    line.position.copy(start).add(end).multiplyScalar(0.5);
-    line.scale.y = start.distanceTo(end);
-    line.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), end.clone().sub(start).normalize());
+  const updateBubble = (state) => {
+    const index = problem.focuses.findIndex(f => f.id === state.activeId);
+    const count = index >= 0 ? (state.revealed[state.activeId] ?? 0) : 0;
+    const key = count > 0 ? `${state.activeId}:${count}` : null;
+    if (bubble?.key === key) return;
+    if (bubble) {
+      anchor.group.remove(bubble.mesh);
+      bubble.dispose();
+      bubble = null;
+    }
     line.visible = false;
-    anchor.group.add(line);
-    return [f.id, [plane.mesh, line]];
-  }));
+    if (!key) return;
+
+    const canvas = renderBubble(problem, index, count);
+    const h = canvas.height * bubbleScale;
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
+    const geometry = new THREE.PlaneGeometry(BUBBLE_W * bubbleScale, h);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(0, bubbleBottom.y + h / 2, bubbleBottom.z);
+    anchor.group.add(mesh);
+    bubble = { key, mesh, dispose: () => [texture, material, geometry].forEach(d => d.dispose()) };
+
+    const r = card.focuses[index].rects[0];
+    const start = toCard(r.x + r.w / 2, r.y, 0.004);
+    line.position.copy(start).add(bubbleBottom).multiplyScalar(0.5);
+    line.scale.y = start.distanceTo(bubbleBottom);
+    line.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), bubbleBottom.clone().sub(start).normalize());
+    lineMaterial.color.set(focusColor(index));
+    line.visible = true;
+  };
 
   const setState = (state) => {
     renderHighlight(highlightCanvas, card.focuses, state);
     highlight.texture.needsUpdate = true;
-    for (const [id, meshes] of Object.entries(bubbles)) {
-      meshes.forEach(m => { m.visible = id === state.activeId; });
-    }
+    updateBubble(state);
   };
 
   // タップした位置をカード上の座標に変換して、注目箇所を判定する
@@ -163,6 +180,7 @@ export async function startAR({ container, problem, onStatus, onTracking, onSele
       renderer.setAnimationLoop(null);
       mindar.stop();
       renderer.dispose();
+      bubble?.dispose();
       disposables.forEach(d => d.dispose());
       URL.revokeObjectURL(targetUrl);
       root.remove();
