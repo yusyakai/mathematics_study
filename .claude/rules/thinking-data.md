@@ -1,17 +1,19 @@
 ---
 paths:
-  - "src/data/thinking/**"
-  - "src/thinking/**"
+  - "src/thinking-app/**"
+  - "thinking/**"
 ---
 
-# 思考プロセスデータ
+# 着眼点トレーナー（別アプリ）
 
-- 形式の定義と検証は `src/thinking/schema.js` が唯一の基準。形式を変えるときは `THINKING_JSON_SCHEMA` と `validateThinking()` を両方更新し、`SCHEMA_VERSION` を上げる。
-- 1問 = 1ファイル（`src/data/thinking/<id>.json`）。置くだけで一覧に載る。
-- `focuses` は問題文の注目箇所を **見るべき順** に並べる（配列の順番が表示される番号になる）。
+- 既存の学習アプリ（`index.html` / `src/` 直下）とは独立したアプリ。入口は `thinking/index.html` → `src/thinking-app/main.jsx`。既存アプリのコードや状態（`AppContext` など）に依存させない。
+- データ形式の定義と検証は `src/thinking-app/lib/schema.js` が唯一の基準。形式を変えるときは `THINKING_JSON_SCHEMA` と `validateThinking()` を両方更新し、`SCHEMA_VERSION` を上げる。
+
+## 思考データ（`src/thinking-app/data/<id>.json`、1問 = 1ファイル、置くだけで一覧に載る）
+
+- `focuses[].priority`: 注目箇所どうしの優先順位（1が最優先、重複不可）。表示する番号になる。
+- `focuses[].insights[].priority`: その注目箇所の中での優先順位（1が最優先、重複不可）。タップごとに優先順位の高いものから1個ずつ表示する。
 - `quote` は問題文からの完全一致の引用にする（文字位置は書かない）。注目箇所どうしは重ねない。同じ文字列が複数あるときだけ `occurrence` を使う。
-- `insights` には方針や解答のまとめではなく、その箇所の文面から直接思い浮かべることを書く。
-  - `written`: 「`cue`」と書いてある → `thought`
-  - `unwritten`: 「`cue`」とは書いていない → `thought`（例: 「並べる」とは書いていない → nPr ではなく nCr）
+- `insights` は「`cue` と書いてある → `thought`」の形で、問題文に**書いてあること**から直接思い浮かべることだけを書く。方針や解答のまとめは書かない。「書いていないこと」からの気づきはいまは扱わない。
 - AIで生成したデータは `meta.source: "ai"`、`meta.model` に使用モデル、人が確認するまで `meta.reviewed: false` にする。
 - 作成・編集後は `npm run validate:thinking` で検証する。

@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { useFocusProgress } from '../../thinking/loadThinking';
-import { startAR } from '../../thinking/arScene';
+import { useFocusProgress } from '../lib/loadThinking';
+import { startAR } from '../lib/arScene';
 import FocusGuide from './FocusGuide';
 
-// スマホのカメラで問題カードを映し、注目箇所をタップすると気づきが浮かぶ
+// スマホのカメラで問題カードを映し、注目箇所をタップするたびに気づきが1個ずつ浮かぶ
 export default function ThinkingARView({ problem, onBack }) {
   const containerRef = useRef(null);
   const sessionRef = useRef(null);
   const progress = useFocusProgress(problem);
-  const { shown, opened, activeId, next, open } = progress;
-  const arState = { shown, opened, activeId, nextId: next?.id ?? null };
+  const { shown, revealed, activeId, next, select } = progress;
+  const arState = { shown, revealed, activeId, nextId: next?.id ?? null };
   const arStateRef = useRef(arState);
-  const openRef = useRef(open);
+  const selectRef = useRef(select);
   const [status, setStatus] = useState('準備中…');
   const [error, setError] = useState(null);
   const [tracking, setTracking] = useState(false);
@@ -23,7 +23,7 @@ export default function ThinkingARView({ problem, onBack }) {
       problem,
       onStatus: s => !cancelled && setStatus(s),
       onTracking: t => !cancelled && setTracking(t),
-      onSelect: id => openRef.current(id),
+      onSelect: id => selectRef.current(id),
     }).then(session => {
       if (cancelled) return session.stop();
       sessionRef.current = session;
@@ -40,8 +40,8 @@ export default function ThinkingARView({ problem, onBack }) {
   }, [problem]);
 
   useEffect(() => {
-    arStateRef.current = { shown, opened, activeId, nextId: next?.id ?? null };
-    openRef.current = open;
+    arStateRef.current = { shown, revealed, activeId, nextId: next?.id ?? null };
+    selectRef.current = select;
     sessionRef.current?.setState(arStateRef.current);
   });
 

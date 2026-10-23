@@ -260,12 +260,6 @@ export default function HomeScreen() {
           </button>
           <button
             className="footer-link-btn"
-            onClick={() => dispatch({ type: 'NAVIGATE', screen: 'thinking' })}
-          >
-            🧠 思考プロセス（AR）
-          </button>
-          <button
-            className="footer-link-btn"
             onClick={() => dispatch({ type: 'NAVIGATE', screen: 'review' })}
           >
             📝 学習履歴

@@ -1,4 +1,72 @@
-/* ============= 思考プロセス（AR試作） ============= */
+/* ============= 着眼点トレーナー ============= */
+:root {
+  --primary: #4f46e5;
+  --primary-light: #818cf8;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --text: #1e293b;
+  --text-secondary: #64748b;
+  --border: #e2e8f0;
+  --radius: 12px;
+  --radius-sm: 8px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary: #6366f1;
+    --primary-light: #a5b4fc;
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --text: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --border: #334155;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--text);
+  font-family: "Noto Sans JP", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+#root {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-header h1,
+.app-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  border-radius: 6px;
+}
+
 .thinking-screen {
   display: flex;
   flex-direction: column;
@@ -184,6 +252,10 @@
   margin-top: 8px;
 }
 
+.focus-actions .focus-hint {
+  flex: 1;
+}
+
 .focus-actions button {
   flex: 1;
   padding: 10px 12px;
@@ -235,9 +307,6 @@
   cursor: pointer;
 }
 
-.insight-list {
-  animation: thought-in 0.3s ease;
-}
 
 .insight-quote {
   display: flex;
@@ -252,32 +321,30 @@
   margin-bottom: 6px;
   border-radius: var(--radius-sm);
   background: var(--surface);
-  border-left: 4px solid #2563eb;
+  border-left: 4px solid var(--primary-light);
+  animation: thought-in 0.3s ease;
 }
 
-.insight-unwritten {
-  border-left-color: #d97706;
-}
 
 .insight-cue {
   font-size: 13px;
   color: var(--text-secondary);
 }
 
-.insight-kind {
-  display: inline-block;
-  padding: 1px 8px;
+.insight-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
   margin-right: 6px;
-  border-radius: 999px;
-  background: #2563eb;
-  color: #fff;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  color: var(--surface);
   font-size: 11px;
   font-weight: 700;
 }
 
-.insight-unwritten .insight-kind {
-  background: #d97706;
-}
 
 .insight-thought {
   margin-top: 2px;
@@ -302,10 +369,9 @@
 }
 
 @media print {
-  .card-view .review-header,
+  .card-view .app-header,
   .card-view .thinking-intro,
-  .card-view .thinking-item-actions,
-  .theme-toggle {
+  .card-view .thinking-item-actions {
     display: none;
   }
   .thinking-card-img {
@@ -402,15 +468,7 @@
   color: #cbd5e1;
 }
 
-.thinking-screen .review-header {
-  padding: 16px 20px;
-  margin-bottom: 0;
-}
 
-.thinking-screen .review-header h2 {
-  font-size: 18px;
-  padding-right: 48px; /* テーマ切替ボタンと重ならないように */
-}
 
 .thinking-item-actions button,
 .thinking-item-actions .button-link {

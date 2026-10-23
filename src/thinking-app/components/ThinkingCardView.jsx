@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { prepareCard } from '../../thinking/arScene';
+import { prepareCard } from '../lib/arScene';
 
 // AR の認識対象になる問題カード。印刷するか、PC の画面に表示してスマホを向ける
 export default function ThinkingCardView({ problem, onBack }) {
@@ -15,7 +15,7 @@ export default function ThinkingCardView({ problem, onBack }) {
 
   return (
     <div className="thinking-screen card-view">
-      <div className="review-header">
+      <div className="app-header">
         <button className="back-btn" onClick={onBack}>←</button>
         <h2>問題カード</h2>
       </div>
