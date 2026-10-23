@@ -1,10 +1,10 @@
-// スマホのカメラで問題カードを認識し、注目箇所と思考ノードを重ねて表示する
+// スマホのカメラで問題カードを認識し、注目箇所と気づきを重ねて表示する
 // MindAR（画像認識AR、無料のOSS）と three.js は CDN から必要なときだけ読み込む。
 // MindAR が "three" を名前で import するため、index.html の importmap と同じURLを使うこと。
 import {
-  CARD_W, CARD_H, ensureFonts, renderCard, renderHighlight, layoutPanel, renderPanel,
+  CARD_W, CARD_H, BUBBLE_W, ensureFonts, renderCard, renderHighlight, renderBubble, hitTestFocus,
 } from './canvasRender';
-import { TRIGGER_COLORS } from './loadThinking';
+import { focusColor } from './loadThinking';
 
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 const MINDAR_URL = 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js';
@@ -46,8 +46,9 @@ export async function prepareCard(problem) {
   return renderCard(problem);
 }
 
-// container に AR を開始する。戻り値の setStep で表示段階を切り替え、stop で終了する
-export async function startAR({ container, problem, onStatus, onTracking }) {
+// container に AR を開始する。setState で表示を切り替え、stop で終了する
+// onSelect(focusId): カード上の注目箇所がタップされたとき
+export async function startAR({ container, problem, onStatus, onTracking, onSelect }) {
   onStatus?.('ライブラリを読み込み中…');
   const [THREE, { MindARThree }] = await Promise.all([
     import(/* @vite-ignore */ THREE_URL),
@@ -59,8 +60,13 @@ export async function startAR({ container, problem, onStatus, onTracking }) {
   const buffer = await compileTarget(card.canvas, p => onStatus?.(`カードの特徴を解析中… ${Math.round(p)}%`));
   const targetUrl = URL.createObjectURL(new Blob([buffer]));
 
+  // セッションごとに専用の要素を使う（終了時に他のセッションの要素を消さないため）
+  const root = document.createElement('div');
+  root.style.cssText = 'position:absolute;inset:0;overflow:hidden';
+  container.appendChild(root);
+
   const mindar = new MindARThree({
-    container,
+    container: root,
     imageTargetSrc: targetUrl,
     uiLoading: 'no',
     uiScanning: 'no',
@@ -94,53 +100,56 @@ export async function startAR({ container, problem, onStatus, onTracking }) {
   highlight.mesh.position.z = 0.002;
   anchor.group.add(highlight.mesh);
 
-  // 思考ノードのパネルはカードの上に少し手前へ浮かべる
-  const layout = layoutPanel(problem);
-  const panelCanvas = document.createElement('canvas');
-  panelCanvas.width = layout.width;
-  panelCanvas.height = layout.height;
-  const panelH = layout.height / layout.width;
-  const panelY = cardH / 2 + 0.06 + panelH / 2;
-  const panelZ = 0.12;
-  const panel = texturePlane(panelCanvas, 1, panelH);
-  panel.mesh.position.set(0, panelY, panelZ);
-  anchor.group.add(panel.mesh);
-
-  // 注目箇所 → 思考ノードを結ぶ線（3D）
-  const links = [];
+  // 注目箇所ごとの吹き出し（カードの上に少し手前へ浮かべ、注目箇所から線でつなぐ）
+  const bubbleScale = 0.9 / BUBBLE_W;
   const lineGeometry = new THREE.CylinderGeometry(0.004, 0.004, 1, 8);
   disposables.push(lineGeometry);
-  card.triggers.forEach((t, i) => {
-    const r = t.rects[0];
-    if (!r) return;
-    const start = toCard(r.x + r.w / 2, r.y, 0.004);
-    const material = new THREE.MeshBasicMaterial({ color: TRIGGER_COLORS[i % TRIGGER_COLORS.length] });
-    disposables.push(material);
-    for (const n of problem.thoughts) {
-      if (!n.from.includes(t.id)) continue;
-      const box = layout.nodes[n.id];
-      const end = new THREE.Vector3(
-        (box.x + box.w / 2) / layout.width - 0.5,
-        panelY + (layout.height / 2 - (box.y + box.h)) / layout.width,
-        panelZ,
-      );
-      const mesh = new THREE.Mesh(lineGeometry, material);
-      mesh.position.copy(start).add(end).multiplyScalar(0.5);
-      mesh.scale.y = start.distanceTo(end);
-      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), end.clone().sub(start).normalize());
-      mesh.visible = false;
-      anchor.group.add(mesh);
-      links.push({ mesh, thoughtId: n.id });
-    }
-  });
+  const bubbles = Object.fromEntries(problem.focuses.map((f, i) => {
+    const canvas = renderBubble(problem, i);
+    const h = canvas.height * bubbleScale;
+    const plane = texturePlane(canvas, BUBBLE_W * bubbleScale, h);
+    plane.mesh.position.set(0, cardH / 2 + 0.05 + h / 2, 0.1);
+    plane.mesh.visible = false;
+    anchor.group.add(plane.mesh);
 
-  const setVisible = (visible) => {
-    renderHighlight(highlightCanvas, card.triggers, visible);
-    renderPanel(panelCanvas, problem, layout, visible);
+    const r = card.focuses[i].rects[0];
+    const start = toCard(r.x + r.w / 2, r.y, 0.004);
+    const end = new THREE.Vector3(0, cardH / 2 + 0.05, 0.1);
+    const material = new THREE.MeshBasicMaterial({ color: focusColor(i) });
+    disposables.push(material);
+    const line = new THREE.Mesh(lineGeometry, material);
+    line.position.copy(start).add(end).multiplyScalar(0.5);
+    line.scale.y = start.distanceTo(end);
+    line.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), end.clone().sub(start).normalize());
+    line.visible = false;
+    anchor.group.add(line);
+    return [f.id, [plane.mesh, line]];
+  }));
+
+  const setState = (state) => {
+    renderHighlight(highlightCanvas, card.focuses, state);
     highlight.texture.needsUpdate = true;
-    panel.texture.needsUpdate = true;
-    links.forEach(l => { l.mesh.visible = visible.triggers && visible.thoughtIds.has(l.thoughtId); });
+    for (const [id, meshes] of Object.entries(bubbles)) {
+      meshes.forEach(m => { m.visible = id === state.activeId; });
+    }
   };
+
+  // タップした位置をカード上の座標に変換して、注目箇所を判定する
+  const raycaster = new THREE.Raycaster();
+  const onPointer = (e) => {
+    if (!anchor.group.visible) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    raycaster.setFromCamera(ndc, camera);
+    const hit = raycaster.intersectObject(highlight.mesh)[0];
+    if (!hit?.uv) return;
+    const id = hitTestFocus(card.focuses, hit.uv.x * CARD_W, (1 - hit.uv.y) * CARD_H);
+    if (id) onSelect?.(id);
+  };
+  root.addEventListener('pointerup', onPointer);
 
   onStatus?.('カメラを起動中…');
   await mindar.start();
@@ -148,14 +157,15 @@ export async function startAR({ container, problem, onStatus, onTracking }) {
   onStatus?.(null);
 
   return {
-    setVisible,
+    setState,
     stop() {
+      root.removeEventListener('pointerup', onPointer);
       renderer.setAnimationLoop(null);
       mindar.stop();
       renderer.dispose();
       disposables.forEach(d => d.dispose());
       URL.revokeObjectURL(targetUrl);
-      container.replaceChildren();
+      root.remove();
     },
   };
 }

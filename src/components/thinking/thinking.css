@@ -65,8 +65,7 @@
 }
 
 .thinking-item-actions button,
-.thinking-item-actions .button-link,
-.step-buttons button {
+.thinking-item-actions .button-link {
   flex: 1;
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -79,16 +78,10 @@
   cursor: pointer;
 }
 
-.thinking-item-actions .primary,
-.step-buttons .primary {
+.thinking-item-actions .primary {
   background: var(--primary);
   border-color: var(--primary);
   color: #fff;
-}
-
-.step-buttons button:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 .thinking-invalid {
@@ -105,136 +98,195 @@
   border-radius: var(--radius);
   font-size: 18px;
   font-weight: 700;
-  line-height: 2;
+  line-height: 2.2;
 }
 
-.thinking-problem mark {
-  background: color-mix(in srgb, var(--mark) 30%, transparent);
-  border-bottom: 3px solid var(--mark);
+.focus-mark {
+  position: relative;
+  font: inherit;
   color: inherit;
   padding: 0 2px;
+  margin: 0 1px;
+  border: none;
+  border-bottom: 3px dashed var(--focus);
+  background: color-mix(in srgb, var(--focus) 10%, transparent);
+  cursor: pointer;
 }
 
-.thinking-problem mark sup {
-  color: var(--mark);
-  margin-right: 2px;
+.focus-mark.next {
+  background: color-mix(in srgb, var(--focus) 22%, transparent);
 }
 
-.thinking-stages {
-  flex: 1;
-  padding: 0 20px;
+.focus-mark.opened {
+  border-bottom-style: solid;
 }
 
-.thinking-stages h3 {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin: 12px 0 6px;
+.focus-mark.active {
+  border-bottom-style: solid;
+  background: color-mix(in srgb, var(--focus) 40%, transparent);
 }
 
-.thought-node {
-  border: 2px solid var(--primary-light);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  animation: thought-in 0.3s ease;
+.focus-mark .focus-num {
+  margin-right: 4px;
+  vertical-align: 2px;
 }
 
-.thought-node.adopted {
-  border-color: var(--success);
-}
-
-.thought-node.rejected {
-  border-style: dashed;
-  border-color: var(--text-secondary);
-  color: var(--text-secondary);
-}
-
-.thought-text {
-  font-weight: 700;
-}
-
-.thought-sub {
-  font-size: 13px;
-  margin-top: 4px;
-  color: var(--success);
-}
-
-.thought-node.rejected .thought-sub {
-  color: var(--danger);
-}
-
-.thought-from {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 4px;
-}
-
-.ref-chip,
-.trigger-dot {
+.focus-num {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 20px;
+  width: 20px;
   height: 20px;
-  padding: 0 6px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
+  border-radius: 50%;
+  background: var(--focus);
   color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
 }
 
-.ref-chip.node {
-  background: var(--border);
-  color: var(--text-secondary);
+.focus-mark.opened:not(.active) .focus-num {
+  background: var(--text-secondary);
 }
 
-@keyframes thought-in {
-  from { opacity: 0; transform: translateY(6px); }
+.focus-mark.next .focus-num {
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--focus);
+  animation: focus-pulse 1.4s ease-in-out infinite;
 }
 
-/* 段階の操作 */
-.step-controls {
-  margin: 12px 20px 0;
+@keyframes focus-pulse {
+  50% { transform: scale(1.2); }
+}
+
+/* 番号ボタンと気づき */
+.focus-guide {
+  margin: 0 20px;
   padding: 12px;
   border-radius: var(--radius);
   background: var(--bg);
   border: 1px solid var(--border);
 }
 
-.step-caption p {
+.focus-hint {
   margin: 4px 0;
   font-size: 14px;
   line-height: 1.6;
 }
 
-.step-count {
+.focus-hint.small {
   font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+}
+
+.focus-actions {
+  display: flex;
+  margin-top: 8px;
+}
+
+.focus-actions button {
+  flex: 1;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.focus-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.focus-chip {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--focus);
+  background: transparent;
+  color: var(--focus);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.focus-chip.opened {
+  background: color-mix(in srgb, var(--focus) 25%, transparent);
+}
+
+.focus-chip.active {
+  background: var(--focus);
+  color: #fff;
+}
+
+.focus-chip.next {
+  animation: focus-pulse 1.4s ease-in-out infinite;
+}
+
+.focus-reset {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.insight-list {
+  animation: thought-in 0.3s ease;
+}
+
+.insight-quote {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.insight {
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border-left: 4px solid #2563eb;
+}
+
+.insight-unwritten {
+  border-left-color: #d97706;
+}
+
+.insight-cue {
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
-.step-note {
-  color: var(--danger);
+.insight-kind {
+  display: inline-block;
+  padding: 1px 8px;
+  margin-right: 6px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
 }
 
-.step-triggers {
-  list-style: none;
-  margin: 4px 0;
-  padding: 0;
-  font-size: 14px;
+.insight-unwritten .insight-kind {
+  background: #d97706;
 }
 
-.step-triggers li {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 4px 0;
+.insight-thought {
+  margin-top: 2px;
+  font-weight: 700;
+  line-height: 1.6;
 }
 
-.step-buttons {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
+@keyframes thought-in {
+  from { opacity: 0; transform: translateY(6px); }
 }
 
 /* カード表示 */
@@ -333,20 +385,21 @@
   padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
 
-.ar-bottom .step-controls {
-  background: rgba(15, 23, 42, 0.8);
+.ar-bottom .focus-guide {
+  max-height: 40dvh; /* カードが隠れすぎないように */
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.85);
   border-color: transparent;
   color: #fff;
 }
 
-.ar-bottom .step-count {
+.ar-bottom .insight {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ar-bottom .insight-cue,
+.ar-bottom .focus-hint.small {
   color: #cbd5e1;
-}
-
-.ar-bottom .step-buttons button:not(.primary) {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: transparent;
-  color: #fff;
 }
 
 .thinking-screen .review-header {

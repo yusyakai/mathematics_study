@@ -1,13 +1,9 @@
-import { useState } from 'react';
-import { buildSteps, visibleAt, TRIGGER_COLORS } from '../../thinking/loadThinking';
-import { STAGES } from '../../thinking/schema';
-import StepControls from './StepControls';
+import { useFocusProgress, focusColor } from '../../thinking/loadThinking';
+import FocusGuide from './FocusGuide';
 
-// カメラを使わない表示。ARと同じ段階で、問題文のハイライトと思考ノードを並べる
+// カメラを使わない表示。問題文の注目箇所をタップすると気づきが出る
 export default function Thinking2DView({ problem, onBack }) {
-  const steps = buildSteps(problem);
-  const [step, setStep] = useState(0);
-  const visible = visibleAt(problem, step);
+  const progress = useFocusProgress(problem);
 
   return (
     <div className="thinking-screen">
@@ -17,63 +13,37 @@ export default function Thinking2DView({ problem, onBack }) {
       </div>
 
       <div className="thinking-problem">
-        <HighlightedProblem problem={problem} active={visible.triggers} />
+        <ProblemText problem={problem} progress={progress} />
       </div>
 
-      <div className="thinking-stages">
-        {Object.entries(STAGES).map(([key, stage]) => {
-          const nodes = problem.thoughts.filter(n => n.stage === key && visible.thoughtIds.has(n.id));
-          if (nodes.length === 0) return null;
-          return (
-            <section key={key}>
-              <h3>{stage.label}</h3>
-              {nodes.map(n => (
-                <div key={n.id} className={`thought-node ${n.adopted === false ? 'rejected' : ''} ${n.adopted ? 'adopted' : ''}`}>
-                  <div className="thought-from">
-                    {n.from.map(ref => <RefChip key={ref} problem={problem} id={ref} />)}
-                  </div>
-                  <div className="thought-text">{n.text}</div>
-                  {n.stage === 'strategy' && (
-                    <div className="thought-sub">{n.adopted ? '✓ 採用' : `✕ 不採用: ${n.reason}`}</div>
-                  )}
-                </div>
-              ))}
-            </section>
-          );
-        })}
-      </div>
-
-      <StepControls problem={problem} steps={steps} step={step} setStep={setStep} />
+      <FocusGuide problem={problem} progress={progress} />
     </div>
   );
 }
 
-function HighlightedProblem({ problem, active }) {
-  if (!active) return problem.problem;
+function ProblemText({ problem, progress }) {
+  if (!progress.shown) return problem.problem;
   const parts = [];
   let pos = 0;
-  const ordered = problem.triggers
-    .map((t, i) => ({ ...t, color: TRIGGER_COLORS[i % TRIGGER_COLORS.length], num: i + 1 }))
+  const ordered = problem.focuses
+    .map((f, i) => ({ ...f, index: i }))
     .sort((a, b) => a.span[0] - b.span[0]);
-  for (const t of ordered) {
-    if (t.span[0] < pos) continue; // 重なる指定は先のものを優先
-    parts.push(problem.problem.slice(pos, t.span[0]));
+  for (const f of ordered) {
+    parts.push(problem.problem.slice(pos, f.span[0]));
+    const state = f.id === progress.activeId ? 'active' : (progress.opened.has(f.id) ? 'opened' : '');
     parts.push(
-      <mark key={t.id} style={{ '--mark': t.color }}>
-        <sup>{t.num}</sup>{problem.problem.slice(t.span[0], t.span[1])}
-      </mark>
+      <button
+        key={f.id}
+        className={`focus-mark ${state} ${f.id === progress.next?.id ? 'next' : ''}`}
+        style={{ '--focus': focusColor(f.index) }}
+        onClick={() => progress.open(f.id)}
+      >
+        <span className="focus-num">{f.index + 1}</span>
+        {problem.problem.slice(f.span[0], f.span[1])}
+      </button>
     );
-    pos = t.span[1];
+    pos = f.span[1];
   }
   parts.push(problem.problem.slice(pos));
   return parts;
-}
-
-function RefChip({ problem, id }) {
-  const ti = problem.triggers.findIndex(t => t.id === id);
-  if (ti >= 0) {
-    return <span className="ref-chip" style={{ background: TRIGGER_COLORS[ti % TRIGGER_COLORS.length] }}>{ti + 1}</span>;
-  }
-  const n = problem.thoughts.find(x => x.id === id);
-  return <span className="ref-chip node">← {n.text.length > 12 ? n.text.slice(0, 12) + '…' : n.text}</span>;
 }

@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { buildSteps, visibleAt } from '../../thinking/loadThinking';
+import { useFocusProgress } from '../../thinking/loadThinking';
 import { startAR } from '../../thinking/arScene';
-import StepControls from './StepControls';
+import FocusGuide from './FocusGuide';
 
-// スマホのカメラで問題カードを映し、注目箇所と思考ノードを重ねる
+// スマホのカメラで問題カードを映し、注目箇所をタップすると気づきが浮かぶ
 export default function ThinkingARView({ problem, onBack }) {
   const containerRef = useRef(null);
   const sessionRef = useRef(null);
-  const steps = buildSteps(problem);
-  const [step, setStep] = useState(0);
+  const progress = useFocusProgress(problem);
+  const { shown, opened, activeId, next, open } = progress;
+  const arState = { shown, opened, activeId, nextId: next?.id ?? null };
+  const arStateRef = useRef(arState);
+  const openRef = useRef(open);
   const [status, setStatus] = useState('準備中…');
   const [error, setError] = useState(null);
   const [tracking, setTracking] = useState(false);
-  const stepRef = useRef(step);
 
   useEffect(() => {
     let cancelled = false;
@@ -21,10 +23,11 @@ export default function ThinkingARView({ problem, onBack }) {
       problem,
       onStatus: s => !cancelled && setStatus(s),
       onTracking: t => !cancelled && setTracking(t),
+      onSelect: id => openRef.current(id),
     }).then(session => {
       if (cancelled) return session.stop();
       sessionRef.current = session;
-      session.setVisible(visibleAt(problem, stepRef.current));
+      session.setState(arStateRef.current);
     }).catch(e => {
       console.error(e);
       if (!cancelled) setError(e ? String(e.message || e) : 'カメラを起動できませんでした。カメラの使用を許可しているか確認してください。');
@@ -37,9 +40,10 @@ export default function ThinkingARView({ problem, onBack }) {
   }, [problem]);
 
   useEffect(() => {
-    stepRef.current = step;
-    sessionRef.current?.setVisible(visibleAt(problem, step));
-  }, [problem, step]);
+    arStateRef.current = { shown, opened, activeId, nextId: next?.id ?? null };
+    openRef.current = open;
+    sessionRef.current?.setState(arStateRef.current);
+  });
 
   return (
     <div className="ar-view">
@@ -59,7 +63,7 @@ export default function ThinkingARView({ problem, onBack }) {
       )}
       {!status && !error && (
         <div className="ar-bottom">
-          <StepControls problem={problem} steps={steps} step={step} setStep={setStep} />
+          <FocusGuide problem={problem} progress={progress} />
         </div>
       )}
     </div>

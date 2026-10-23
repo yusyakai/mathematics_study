@@ -1,13 +1,14 @@
 // AR用の画像を canvas に描く
 //   renderCard      : 印刷・画面表示する問題カード（AR の認識対象）と、注目箇所の位置
-//   renderHighlight : カードに重ねる注目箇所のハイライト
-//   renderPanel     : カードの上に浮かべる思考ノード
+//   renderHighlight : カードに重ねる注目箇所の番号とハイライト
+//   renderBubble    : 触った注目箇所の上に浮かべる気づきの吹き出し
 // 端末ごとのフォント差でカードの見た目と注目箇所の位置がずれないよう、Webフォントで描く
-import { STAGES } from './schema';
-import { TRIGGER_COLORS } from './loadThinking';
+import { INSIGHT_KINDS } from './schema';
+import { focusColor } from './loadThinking';
 
 export const CARD_W = 1200;
 export const CARD_H = 800;
+export const BUBBLE_W = 1000;
 const BORDER = 72;
 const FONT = '"Noto Sans JP", sans-serif';
 
@@ -15,8 +16,9 @@ export async function ensureFonts(problem) {
   if (!document.fonts) return;
   const text = [
     problem.title, problem.subject, problem.unit, problem.problem,
-    ...problem.thoughts.flatMap(n => [n.text, n.reason || '']),
-    '気づき方針実行採用不採用解法セレクト✓✕',
+    ...problem.focuses.flatMap(f => [f.quote, ...f.insights.flatMap(s => [s.cue, s.thought])]),
+    ...Object.values(INSIGHT_KINDS).flatMap(k => [k.label, k.phrase]),
+    '解法セレクト「」→',
   ].join('');
   try {
     await Promise.race([
@@ -109,7 +111,7 @@ export function renderCard(problem) {
   ctx.fillText(`解法セレクト AR  #${problem.id}`, left, CARD_H - BORDER - 44);
 
   const fontSize = 46;
-  const lineHeight = Math.round(fontSize * 1.8);
+  const lineHeight = Math.round(fontSize * 1.9);
   ctx.font = `700 ${fontSize}px ${FONT}`;
   const { chars, lines } = layoutChars(ctx, problem.problem, maxWidth, lineHeight);
   const areaTop = BORDER + 90;
@@ -119,45 +121,76 @@ export function renderCard(problem) {
   for (const c of chars) ctx.fillText(c.ch, left + c.x, top + c.y + (lineHeight - fontSize) / 2);
 
   // 注目箇所の矩形（行ごと）
-  const triggers = problem.triggers.map(t => {
+  const focuses = problem.focuses.map(f => {
     const rects = [];
     for (const c of chars) {
-      if (c.offset < t.span[0] || c.offset >= t.span[1]) continue;
+      if (c.offset < f.span[0] || c.offset >= f.span[1]) continue;
       const last = rects[rects.length - 1];
-      const y = top + c.y + 4;
+      const y = top + c.y + 8;
       if (last && last.y === y) last.w = left + c.x + c.w - last.x;
-      else rects.push({ x: left + c.x, y, w: c.w, h: lineHeight - 8 });
+      else rects.push({ x: left + c.x, y, w: c.w, h: lineHeight - 16 });
     }
-    return { id: t.id, rects };
+    return { id: f.id, rects };
   });
 
-  return { canvas, triggers };
+  return { canvas, focuses };
 }
 
-export function renderHighlight(canvas, cardTriggers, visible) {
+// カード上の座標 (px) にある注目箇所のIDを返す
+export function hitTestFocus(cardFocuses, x, y, pad = 16) {
+  const hit = cardFocuses.find(f => f.rects.some(r =>
+    x >= r.x - pad && x <= r.x + r.w + pad && y >= r.y - pad && y <= r.y + r.h + pad));
+  return hit?.id ?? null;
+}
+
+// state: { shown, opened:Set, activeId, nextId }
+export function renderHighlight(canvas, cardFocuses, state) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!visible.triggers) return;
-  cardTriggers.forEach((t, i) => {
-    const color = TRIGGER_COLORS[i % TRIGGER_COLORS.length];
-    t.rects.forEach(r => {
-      ctx.globalAlpha = 0.3;
+  if (!state.shown) return;
+
+  cardFocuses.forEach((f, i) => {
+    const color = focusColor(i);
+    const isActive = f.id === state.activeId;
+    const isOpened = state.opened.has(f.id);
+    const isNext = f.id === state.nextId;
+    f.rects.forEach(r => {
+      ctx.globalAlpha = isActive ? 0.4 : (isNext ? 0.22 : 0.12);
       ctx.fillStyle = color;
       ctx.fillRect(r.x - 4, r.y, r.w + 8, r.h);
       ctx.globalAlpha = 1;
-      ctx.fillRect(r.x - 4, r.y + r.h - 6, r.w + 8, 6);
+      if (isOpened || isActive) {
+        ctx.fillRect(r.x - 4, r.y + r.h - 6, r.w + 8, 6);
+      } else {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.setLineDash([12, 8]);
+        ctx.beginPath();
+        ctx.moveTo(r.x - 4, r.y + r.h - 3);
+        ctx.lineTo(r.x + r.w + 4, r.y + r.h - 3);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
     });
-    const first = t.rects[0];
+
+    // 見る順番の番号
+    const first = f.rects[0];
     if (!first) return;
-    ctx.fillStyle = color;
+    const radius = isNext ? 24 : 20;
+    ctx.fillStyle = isOpened && !isActive ? '#94a3b8' : color;
     ctx.beginPath();
-    ctx.arc(first.x - 4, first.y, 20, 0, Math.PI * 2);
+    ctx.arc(first.x - 4, first.y - 4, radius, 0, Math.PI * 2);
     ctx.fill();
+    if (isNext) {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    }
     ctx.fillStyle = '#fff';
     ctx.font = `700 24px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(String(i + 1), first.x - 4, first.y + 1);
+    ctx.fillText(String(i + 1), first.x - 4, first.y - 3);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
   });
@@ -176,91 +209,70 @@ function wrapLines(ctx, text, maxWidth) {
   return lines;
 }
 
-// 思考ノードの配置を計算する（表示段階に関係なく固定。段階が進んでも位置が動かない）
-export function layoutPanel(problem) {
-  const PANEL_W = CARD_W;
-  const pad = 24;
-  const colGap = 20;
-  const stageKeys = Object.keys(STAGES);
-  const colW = (PANEL_W - pad * 2 - colGap * (stageKeys.length - 1)) / stageKeys.length;
-  const ctx = document.createElement('canvas').getContext('2d');
-  const colY = Object.fromEntries(stageKeys.map(k => [k, pad + 56]));
-  const nodes = {};
+// 1つの注目箇所の気づきを吹き出しとして描く。高さは内容に合わせる
+export function renderBubble(problem, index) {
+  const focus = problem.focuses[index];
+  const color = focusColor(index);
+  const pad = 28;
+  const textW = BUBBLE_W - pad * 2;
+  const measure = document.createElement('canvas').getContext('2d');
 
-  for (const n of problem.thoughts) {
-    const col = stageKeys.indexOf(n.stage);
-    ctx.font = `700 26px ${FONT}`;
-    const lines = wrapLines(ctx, n.text, colW - 32);
-    ctx.font = `400 21px ${FONT}`;
-    const subLines = n.stage === 'strategy'
-      ? wrapLines(ctx, n.adopted ? '✓ 採用' : `✕ 不採用: ${n.reason}`, colW - 32)
-      : [];
-    const h = 24 + lines.length * 36 + subLines.length * 30 + 12;
-    nodes[n.id] = { x: pad + col * (colW + colGap), y: colY[n.stage], w: colW, h, col, lines, subLines, node: n };
-    colY[n.stage] += h + 16;
-  }
-  const height = Math.max(360, Math.max(...Object.values(colY)) + pad);
-  return { width: PANEL_W, height, nodes, colW, pad, colGap, stageKeys };
-}
+  const rows = focus.insights.map(s => {
+    measure.font = `400 26px ${FONT}`;
+    const cueLines = wrapLines(measure, `「${s.cue}」${INSIGHT_KINDS[s.kind].phrase}`, textW - 150);
+    measure.font = `700 32px ${FONT}`;
+    const thoughtLines = wrapLines(measure, `→ ${s.thought}`, textW);
+    return { s, cueLines, thoughtLines, h: cueLines.length * 36 + thoughtLines.length * 44 + 28 };
+  });
+  const headerH = 64;
+  const height = pad + headerH + rows.reduce((sum, r) => sum + r.h, 0) + pad;
 
-export function renderPanel(canvas, problem, layout, visible) {
+  const canvas = document.createElement('canvas');
+  canvas.width = BUBBLE_W;
+  canvas.height = height;
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (visible.thoughtIds.size === 0) return;
-
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 6;
   ctx.beginPath();
-  ctx.roundRect(0, 0, layout.width, layout.height, 28);
+  ctx.roundRect(3, 3, BUBBLE_W - 6, height - 6, 28);
   ctx.fill();
+  ctx.stroke();
 
   ctx.textBaseline = 'top';
-  layout.stageKeys.forEach((k, i) => {
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = `700 26px ${FONT}`;
-    ctx.fillText(STAGES[k].label, layout.pad + i * (layout.colW + layout.colGap) + 8, layout.pad + 8);
-  });
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(pad + 22, pad + 22, 22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = `700 26px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.fillText(String(index + 1), pad + 22, pad + 8);
+  ctx.textAlign = 'left';
+  ctx.font = `700 30px ${FONT}`;
+  ctx.fillText(`「${focus.quote}」`, pad + 56, pad + 4);
 
-  // ノード同士のつながり
-  ctx.strokeStyle = '#a5b4fc';
-  ctx.lineWidth = 4;
-  for (const n of problem.thoughts) {
-    if (!visible.thoughtIds.has(n.id)) continue;
-    const to = layout.nodes[n.id];
-    for (const ref of n.from) {
-      const from = layout.nodes[ref];
-      if (!from || !visible.thoughtIds.has(ref)) continue;
-      ctx.beginPath();
-      if (from.col < to.col) {
-        const x1 = from.x + from.w, y1 = from.y + from.h / 2, x2 = to.x, y2 = to.y + to.h / 2;
-        ctx.moveTo(x1, y1);
-        ctx.bezierCurveTo(x1 + 30, y1, x2 - 30, y2, x2, y2);
-      } else {
-        ctx.moveTo(from.x + from.w / 2, from.y + from.h);
-        ctx.lineTo(to.x + to.w / 2, to.y);
-      }
-      ctx.stroke();
-    }
-  }
-
-  for (const n of problem.thoughts) {
-    if (!visible.thoughtIds.has(n.id)) continue;
-    const box = layout.nodes[n.id];
-    const rejected = n.adopted === false;
-    ctx.fillStyle = rejected ? '#334155' : '#1e293b';
-    ctx.strokeStyle = rejected ? '#64748b' : (n.adopted ? '#34d399' : '#818cf8');
-    ctx.lineWidth = 4;
-    ctx.setLineDash(rejected ? [10, 8] : []);
+  let y = pad + headerH;
+  for (const r of rows) {
+    const written = r.s.kind === 'written';
+    ctx.fillStyle = written ? '#2563eb' : '#d97706';
     ctx.beginPath();
-    ctx.roundRect(box.x, box.y, box.w, box.h, 14);
+    ctx.roundRect(pad, y, 136, 34, 17);
     ctx.fill();
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    ctx.fillStyle = rejected ? '#94a3b8' : '#f8fafc';
-    ctx.font = `700 26px ${FONT}`;
-    box.lines.forEach((l, i) => ctx.fillText(l, box.x + 16, box.y + 18 + i * 36));
-    ctx.fillStyle = rejected ? '#fca5a5' : '#6ee7b7';
-    ctx.font = `400 21px ${FONT}`;
-    box.subLines.forEach((l, i) => ctx.fillText(l, box.x + 16, box.y + 18 + box.lines.length * 36 + i * 30));
+    ctx.fillStyle = '#fff';
+    ctx.font = `700 20px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.fillText(INSIGHT_KINDS[r.s.kind].label, pad + 68, y + 6);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = `400 26px ${FONT}`;
+    r.cueLines.forEach((l, i) => ctx.fillText(l, pad + 150, y + 2 + i * 36));
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = `700 32px ${FONT}`;
+    const ty = y + r.cueLines.length * 36 + 6;
+    r.thoughtLines.forEach((l, i) => ctx.fillText(l, pad, ty + i * 44));
+    y += r.h;
   }
+
+  return canvas;
 }

@@ -1,6 +1,7 @@
 // src/data/thinking/*.json を読み込み、検証を通ったものだけを使う
 // ファイルを置くだけで追加される（AIが生成したファイルも同じ）
-import { validateThinking, locateQuote, STAGES } from './schema';
+import { useState } from 'react';
+import { validateThinking, locateQuote } from './schema';
 
 const modules = import.meta.glob('../data/thinking/*.json', { eager: true, import: 'default' });
 
@@ -15,34 +16,35 @@ for (const [path, data] of Object.entries(modules)) {
   }
   thinkingProblems.push({
     ...data,
-    triggers: data.triggers.map(t => ({
-      ...t,
-      span: locateQuote(data.problem, t.quote, t.occurrence ?? 1),
+    focuses: data.focuses.map(f => ({
+      ...f,
+      span: locateQuote(data.problem, f.quote, f.occurrence ?? 1),
     })),
   });
 }
 
 thinkingProblems.sort((a, b) => a.id.localeCompare(b.id));
 
-// 表示の段階: 問題文 → 注目ポイント → 思考ノードを1つずつ
-export function buildSteps(problem) {
-  return [
-    { kind: 'problem', caption: '問題文を読もう。どこが解法の手がかりになる？' },
-    { kind: 'triggers', caption: '注目ポイント' },
-    ...problem.thoughts.map(n => ({
-      kind: 'thought',
-      id: n.id,
-      caption: `${STAGES[n.stage].label}: ${n.text}`,
-      note: n.adopted === false ? `不採用の理由: ${n.reason}` : null,
-    })),
-  ];
-}
+export const FOCUS_COLORS = ['#f59e0b', '#3b82f6', '#ec4899', '#10b981', '#8b5cf6', '#ef4444'];
+export const focusColor = (index) => FOCUS_COLORS[index % FOCUS_COLORS.length];
 
-export function visibleAt(problem, stepIndex) {
-  return {
-    triggers: stepIndex >= 1,
-    thoughtIds: new Set(problem.thoughts.slice(0, Math.max(0, stepIndex - 1)).map(n => n.id)),
+// 学習の進み具合: 注目箇所を表示したか、どこを開いたか、いま開いている箇所
+export function useFocusProgress(problem) {
+  const [shown, setShown] = useState(false);
+  const [opened, setOpened] = useState(() => new Set());
+  const [activeId, setActiveId] = useState(null);
+
+  const open = (id) => {
+    setShown(true);
+    setActiveId(id);
+    setOpened(prev => new Set(prev).add(id));
   };
-}
+  const reset = () => {
+    setShown(false);
+    setOpened(new Set());
+    setActiveId(null);
+  };
+  const next = problem.focuses.find(f => !opened.has(f.id)) ?? null;
 
-export const TRIGGER_COLORS = ['#f59e0b', '#3b82f6', '#ec4899', '#10b981', '#8b5cf6'];
+  return { shown, show: () => setShown(true), opened, activeId, open, reset, next };
+}
