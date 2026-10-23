@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 2,
+  "id": "probability_001",
+  "questionId": "probability_001",
+  "title": "確率 基本",
+  "subject": "数学A",
+  "unit": "確率",
+  "difficulty": "C",
+  "problem": "赤玉3個、白玉5個が入った袋から2個取り出すとき、2個とも赤玉である確率を求めよ。",
+  "focuses": [
+    {
+      "id": "f1",
+      "quote": "確率を求めよ",
+      "insights": [
+        { "kind": "written", "cue": "確率", "thought": "（条件に合う場合の数）÷（全体の場合の数）で求める" },
+        { "kind": "unwritten", "cue": "同じ色の玉は区別しない", "thought": "確率では同じ色の玉も1個ずつ区別して数える（どの取り出し方も同じ確からしさにするため）" }
+      ]
+    },
+    {
+      "id": "f2",
+      "quote": "2個取り出す",
+      "insights": [
+        { "kind": "unwritten", "cue": "並べる・順に", "thought": "取り出して並べないので、順番は関係ない → nPr ではなく nCr を使う" },
+        { "kind": "unwritten", "cue": "1個ずつ・戻す", "thought": "2個を同時に取り出す。1回目の玉を戻すことは考えなくてよい" },
+        { "kind": "written", "cue": "2個", "thought": "全体の場合の数は、全部の玉から2個を選ぶ選び方" }
+      ]
+    },
+    {
+      "id": "f3",
+      "quote": "赤玉3個、白玉5個",
+      "insights": [
+        { "kind": "written", "cue": "赤玉3個、白玉5個", "thought": "玉は全部で 3 + 5 = 8 個 → 全体は ₈C₂ 通り" },
+        { "kind": "written", "cue": "赤玉3個", "thought": "赤玉だけから選ぶときは3個の中から選ぶ" }
+      ]
+    },
+    {
+      "id": "f4",
+      "quote": "2個とも赤玉",
+      "insights": [
+        { "kind": "written", "cue": "2個とも", "thought": "2個の両方が赤 → 赤玉3個から2個を選ぶ ₃C₂ 通り" },
+        { "kind": "unwritten", "cue": "少なくとも", "thought": "「少なくとも1個」ではないので余事象は使わず、そのまま数えればよい" }
+      ]
+    }
+  ],
+  "meta": { "source": "manual", "reviewed": true }
+}

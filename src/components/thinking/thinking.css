@@ -1,0 +1,418 @@
+/* ============= 思考プロセス（AR試作） ============= */
+.thinking-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding-bottom: 16px;
+}
+
+.thinking-intro {
+  margin: 12px 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.thinking-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.thinking-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: var(--bg);
+}
+
+.thinking-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.thinking-item-title {
+  font-weight: 700;
+}
+
+.thinking-item-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.thinking-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--primary-light);
+  color: #fff;
+}
+
+.thinking-badge.warn {
+  background: var(--warning);
+}
+
+.thinking-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.thinking-item-actions button,
+.thinking-item-actions .button-link {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.thinking-item-actions .primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.thinking-invalid {
+  margin: 16px 20px;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+/* 2D表示 */
+.thinking-problem {
+  margin: 16px 20px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 2.2;
+}
+
+.focus-mark {
+  position: relative;
+  font: inherit;
+  color: inherit;
+  padding: 0 2px;
+  margin: 0 1px;
+  border: none;
+  border-bottom: 3px dashed var(--focus);
+  background: color-mix(in srgb, var(--focus) 10%, transparent);
+  cursor: pointer;
+}
+
+.focus-mark.next {
+  background: color-mix(in srgb, var(--focus) 22%, transparent);
+}
+
+.focus-mark.opened {
+  border-bottom-style: solid;
+}
+
+.focus-mark.active {
+  border-bottom-style: solid;
+  background: color-mix(in srgb, var(--focus) 40%, transparent);
+}
+
+.focus-mark .focus-num {
+  margin-right: 4px;
+  vertical-align: 2px;
+}
+
+.focus-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--focus);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.focus-mark.opened:not(.active) .focus-num {
+  background: var(--text-secondary);
+}
+
+.focus-mark.next .focus-num {
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--focus);
+  animation: focus-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes focus-pulse {
+  50% { transform: scale(1.2); }
+}
+
+/* 番号ボタンと気づき */
+.focus-guide {
+  margin: 0 20px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.focus-hint {
+  margin: 4px 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.focus-hint.small {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+}
+
+.focus-actions {
+  display: flex;
+  margin-top: 8px;
+}
+
+.focus-actions button {
+  flex: 1;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.focus-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.focus-chip {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--focus);
+  background: transparent;
+  color: var(--focus);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.focus-chip.opened {
+  background: color-mix(in srgb, var(--focus) 25%, transparent);
+}
+
+.focus-chip.active {
+  background: var(--focus);
+  color: #fff;
+}
+
+.focus-chip.next {
+  animation: focus-pulse 1.4s ease-in-out infinite;
+}
+
+.focus-reset {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.insight-list {
+  animation: thought-in 0.3s ease;
+}
+
+.insight-quote {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.insight {
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border-left: 4px solid #2563eb;
+}
+
+.insight-unwritten {
+  border-left-color: #d97706;
+}
+
+.insight-cue {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.insight-kind {
+  display: inline-block;
+  padding: 1px 8px;
+  margin-right: 6px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.insight-unwritten .insight-kind {
+  background: #d97706;
+}
+
+.insight-thought {
+  margin-top: 2px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+@keyframes thought-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+/* カード表示 */
+.thinking-card-img {
+  width: calc(100% - 40px);
+  margin: 16px 20px 0;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.card-view .thinking-item-actions {
+  margin: 0 20px;
+}
+
+@media print {
+  .card-view .review-header,
+  .card-view .thinking-intro,
+  .card-view .thinking-item-actions,
+  .theme-toggle {
+    display: none;
+  }
+  .thinking-card-img {
+    width: 100%;
+    margin: 0;
+    box-shadow: none;
+  }
+}
+
+/* AR表示（画面全体） */
+.ar-view {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #000;
+  color: #fff;
+}
+
+.ar-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.ar-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+}
+
+.ar-back {
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.7);
+  color: #fff;
+  font-size: 14px;
+}
+
+.ar-tracking {
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.ar-tracking.on {
+  background: rgba(16, 185, 129, 0.85);
+}
+
+.ar-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.ar-error {
+  color: #fca5a5;
+  pointer-events: auto;
+}
+
+.ar-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.ar-bottom .focus-guide {
+  max-height: 40dvh; /* カードが隠れすぎないように */
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.85);
+  border-color: transparent;
+  color: #fff;
+}
+
+.ar-bottom .insight {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ar-bottom .insight-cue,
+.ar-bottom .focus-hint.small {
+  color: #cbd5e1;
+}
+
+.thinking-screen .review-header {
+  padding: 16px 20px;
+  margin-bottom: 0;
+}
+
+.thinking-screen .review-header h2 {
+  font-size: 18px;
+  padding-right: 48px; /* テーマ切替ボタンと重ならないように */
+}
+
+.thinking-item-actions button,
+.thinking-item-actions .button-link {
+  white-space: nowrap;
+}
