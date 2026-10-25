@@ -1,17 +1,74 @@
-import { useState } from 'react';
-import { thinkingProblems, invalidThinking } from './lib/loadThinking';
-import Thinking2DView from './components/Thinking2DView';
-import ThinkingARView from './components/ThinkingARView';
-import ThinkingCardView from './components/ThinkingCardView';
+import { useEffect, useRef, useState } from 'react';
+import { thinkingProblems, invalidThinking } from './lib/loadThinking.js';
+import { SUBJECTS } from './lib/catalog.js';
+import { readStore, STORE_KEYS } from './lib/storage.js';
+import Thinking2DView from './components/Thinking2DView.jsx';
+import ThinkingARView from './components/ThinkingARView.jsx';
+import ThinkingCardView from './components/ThinkingCardView.jsx';
+import SummaryView from './components/SummaryView.jsx';
+import StudioView from './components/StudioView.jsx';
+import EditorView from './components/EditorView.jsx';
+import ProblemItem from './components/ProblemItem.jsx';
 
-// 着眼点トレーナー: 問題一覧と各表示モードを切り替える
+// 画面の移動を履歴として持ち、スマホの「戻る」操作でも1つ前の画面に戻れるようにする
+function useScreens() {
+  const uid = useRef(0);
+  const [stack, setStack] = useState(() => [{ mode: 'list', uid: 0 }]);
+
+  useEffect(() => {
+    const onPop = () => setStack(s => (s.length > 1 ? s.slice(0, -1) : s));
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  return {
+    view: stack[stack.length - 1],
+    open: (next) => {
+      window.history.pushState(null, '');
+      setStack(s => [...s, { ...next, uid: ++uid.current }]);
+    },
+    replace: (next) => setStack(s => [...s.slice(0, -1), { ...next, uid: ++uid.current }]),
+    back: () => window.history.back(),
+  };
+}
+
+// 着眼点トレーナー: 問題一覧と各画面を切り替える
 export default function App() {
-  const [view, setView] = useState({ mode: 'list', problem: null });
-  const back = () => setView({ mode: 'list', problem: null });
+  const { view, open, replace, back } = useScreens();
+  const { problem } = view;
+  const toSummary = () => replace({ mode: 'summary', problem });
 
-  if (view.mode === '2d') return <Thinking2DView problem={view.problem} onBack={back} />;
-  if (view.mode === 'ar') return <ThinkingARView problem={view.problem} onBack={back} />;
-  if (view.mode === 'card') return <ThinkingCardView problem={view.problem} onBack={back} />;
+  switch (view.mode) {
+    case '2d':
+      return <Thinking2DView key={view.uid} problem={problem} onBack={back} onSummary={toSummary} />;
+    case 'ar':
+      return (
+        <ThinkingARView
+          key={view.uid}
+          problem={problem}
+          onBack={back}
+          onFallback={() => replace({ mode: '2d', problem })}
+          onSummary={toSummary}
+        />
+      );
+    case 'card':
+      return <ThinkingCardView key={view.uid} problem={problem} onBack={back} />;
+    case 'summary':
+      return <SummaryView key={view.uid} problem={problem} onBack={back} onRetry={() => replace({ mode: '2d', problem })} />;
+    case 'studio':
+      return <StudioView key={view.uid} onBack={back} onOpen={open} />;
+    case 'editor':
+      return <EditorView key={view.uid} draftKey={view.draftKey} onBack={back} onOpen={open} />;
+    default:
+      return <ListScreen onOpen={open} />;
+  }
+}
+
+function ListScreen({ onOpen }) {
+  const [completed] = useState(() => readStore(STORE_KEYS.completed, {}));
+  const [subject, setSubject] = useState(null);
+  const subjects = Object.keys(SUBJECTS).filter(s => thinkingProblems.some(p => p.subject === s));
+  const problems = subject ? thinkingProblems.filter(p => p.subject === subject) : thinkingProblems;
 
   return (
     <div className="thinking-screen">
@@ -24,24 +81,18 @@ export default function App() {
         ARで見るときは、問題カードを印刷するかPCの画面に表示し、スマホのカメラを向けてください。
       </p>
 
+      {subjects.length > 1 && (
+        <div className="subject-filter" role="group" aria-label="科目で絞り込む">
+          <button className={subject === null ? 'active' : ''} aria-pressed={subject === null} onClick={() => setSubject(null)}>すべて</button>
+          {subjects.map(s => (
+            <button key={s} className={subject === s ? 'active' : ''} aria-pressed={subject === s} onClick={() => setSubject(s)}>{s}</button>
+          ))}
+        </div>
+      )}
+
       <ul className="thinking-list">
-        {thinkingProblems.map(p => (
-          <li key={p.id} className="thinking-item">
-            <div className="thinking-item-head">
-              <span className="thinking-item-title">{p.title}</span>
-              {p.meta.source === 'ai' && (
-                <span className={`thinking-badge ${p.meta.reviewed ? '' : 'warn'}`}>
-                  {p.meta.reviewed ? 'AI生成' : 'AI生成・未確認'}
-                </span>
-              )}
-            </div>
-            <div className="thinking-item-sub">{[p.subject, p.unit].filter(Boolean).join('｜')}</div>
-            <div className="thinking-item-actions">
-              <button onClick={() => setView({ mode: '2d', problem: p })}>画面で見る</button>
-              <button className="primary" onClick={() => setView({ mode: 'ar', problem: p })}>ARで見る</button>
-              <button onClick={() => setView({ mode: 'card', problem: p })}>カード</button>
-            </div>
-          </li>
+        {problems.map(p => (
+          <ProblemItem key={p.id} problem={p} completedAt={completed[p.id]} onOpen={onOpen} />
         ))}
       </ul>
 
@@ -56,6 +107,10 @@ export default function App() {
           ))}
         </details>
       )}
+
+      <footer className="app-footer">
+        <button className="link-button" onClick={() => onOpen({ mode: 'studio' })}>問題データを作る（作成ツール）</button>
+      </footer>
     </div>
   );
 }

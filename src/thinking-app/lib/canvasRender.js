@@ -1,9 +1,11 @@
 // AR用の画像を canvas に描く
-//   renderCard      : 印刷・画面表示する問題カード（AR の認識対象）と、注目箇所の位置
-//   renderHighlight : カードに重ねる注目箇所の番号とハイライト
-//   renderBubble    : 触った注目箇所の上に浮かべる気づきの吹き出し（表示済みの気づきだけ）
+//   renderCard      : 印刷・画面表示する問題カード（AR の認識対象）と、文字の配置
+//   renderHighlight : カードに重ねる注目箇所の番号・ハイライトと、手がかりの語句の強調
+//   renderBubble    : 開いている注目箇所の上に浮かべる吹き出し（出した気づきと問いかけ）
 // 端末ごとのフォント差でカードの見た目と注目箇所の位置がずれないよう、Webフォントで描く
-import { focusColor } from './loadThinking';
+import { KINDS, ROLES, promptFor } from './catalog.js';
+import { rectsForSpan } from './geometry.js';
+import { focusColor, KIND_COLORS } from './colors.js';
 
 export const CARD_W = 1200;
 export const CARD_H = 800;
@@ -15,8 +17,10 @@ export async function ensureFonts(problem) {
   if (!document.fonts) return;
   const text = [
     problem.title, problem.subject, problem.unit, problem.problem,
-    ...problem.focuses.flatMap(f => [f.quote, ...f.insights.flatMap(s => [s.cue, s.thought])]),
-    '着眼点トレーナー「」→と書いてある0123456789',
+    ...problem.focuses.flatMap(f => [f.quote, ...f.insights.flatMap(s => [s.cue, s.thought, promptFor(s)])]),
+    ...Object.values(KINDS).map(k => k.label),
+    ...Object.values(ROLES).map(r => r.label),
+    '着眼点トレーナー「」→と書いてあるもう一度タップで答え次の気づきあと個0123456789',
   ].join('');
   try {
     await Promise.race([
@@ -86,6 +90,7 @@ function layoutChars(ctx, text, maxWidth, lineHeight) {
   return { chars, lines: line + 1 };
 }
 
+// 戻り値: { canvas, focuses: [{ id, rects }], rectsFor(span) }
 export function renderCard(problem) {
   const canvas = document.createElement('canvas');
   canvas.width = CARD_W;
@@ -111,49 +116,56 @@ export function renderCard(problem) {
   const fontSize = 46;
   const lineHeight = Math.round(fontSize * 1.9);
   ctx.font = `700 ${fontSize}px ${FONT}`;
-  const { chars, lines } = layoutChars(ctx, problem.problem, maxWidth, lineHeight);
+  const layout = layoutChars(ctx, problem.problem, maxWidth, lineHeight);
   const areaTop = BORDER + 90;
   const areaBottom = CARD_H - BORDER - 60;
-  const top = areaTop + Math.max(0, (areaBottom - areaTop - lines * lineHeight) / 2);
+  const top = areaTop + Math.max(0, (areaBottom - areaTop - layout.lines * lineHeight) / 2);
   ctx.fillStyle = '#0f172a';
-  for (const c of chars) ctx.fillText(c.ch, left + c.x, top + c.y + (lineHeight - fontSize) / 2);
+  for (const c of layout.chars) ctx.fillText(c.ch, left + c.x, top + c.y + (lineHeight - fontSize) / 2);
 
-  // 注目箇所の矩形（行ごと）
-  const focuses = problem.focuses.map(f => {
-    const rects = [];
-    for (const c of chars) {
-      if (c.offset < f.span[0] || c.offset >= f.span[1]) continue;
-      const last = rects[rects.length - 1];
-      const y = top + c.y + 8;
-      if (last && last.y === y) last.w = left + c.x + c.w - last.x;
-      else rects.push({ x: left + c.x, y, w: c.w, h: lineHeight - 16 });
-    }
-    return { id: f.id, rects };
-  });
+  // カード上の座標に直した文字の配置
+  const chars = layout.chars.map(c => ({ ...c, x: left + c.x, y: top + c.y }));
+  const rectsFor = (span) => rectsForSpan(chars, span, lineHeight);
 
-  return { canvas, focuses };
+  return {
+    canvas,
+    focuses: problem.focuses.map(f => ({ id: f.id, rects: rectsFor(f.span) })),
+    rectsFor,
+  };
 }
 
-// カード上の座標 (px) にある注目箇所のIDを返す
-export function hitTestFocus(cardFocuses, x, y, pad = 16) {
-  const hit = cardFocuses.find(f => f.rects.some(r =>
-    x >= r.x - pad && x <= r.x + r.w + pad && y >= r.y - pad && y <= r.y + r.h + pad));
-  return hit?.id ?? null;
+function drawNumber(ctx, x, y, radius, color, text, ring) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  if (ring) {
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#fff';
+  ctx.font = `700 24px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y + 1);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
 }
 
-// state: { shown, revealed: {focusId: 表示済みの数}, activeId, nextId }
-export function renderHighlight(canvas, cardFocuses, state) {
+// view: { shown, activeId, nextId, openedIds: Set, cueRects: 矩形の配列 }
+export function renderHighlight(canvas, card, view) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!state.shown) return;
+  if (!view.shown) return;
 
-  cardFocuses.forEach((f, i) => {
+  card.focuses.forEach((f, i) => {
     const color = focusColor(i);
-    const isActive = f.id === state.activeId;
-    const isOpened = (state.revealed[f.id] ?? 0) > 0;
-    const isNext = f.id === state.nextId;
+    const isActive = f.id === view.activeId;
+    const isOpened = view.openedIds.has(f.id);
+    const isNext = f.id === view.nextId;
     f.rects.forEach(r => {
-      ctx.globalAlpha = isActive ? 0.4 : (isNext ? 0.22 : 0.12);
+      ctx.globalAlpha = isActive ? 0.3 : (isNext ? 0.2 : 0.1);
       ctx.fillStyle = color;
       ctx.fillRect(r.x - 4, r.y, r.w + 8, r.h);
       ctx.globalAlpha = 1;
@@ -170,28 +182,18 @@ export function renderHighlight(canvas, cardFocuses, state) {
         ctx.setLineDash([]);
       }
     });
-
-    // 見る順番の番号
     const first = f.rects[0];
-    if (!first) return;
-    const radius = isNext ? 24 : 20;
-    ctx.fillStyle = isOpened && !isActive ? '#94a3b8' : color;
-    ctx.beginPath();
-    ctx.arc(first.x - 4, first.y - 4, radius, 0, Math.PI * 2);
-    ctx.fill();
-    if (isNext) {
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 4;
-      ctx.stroke();
-    }
-    ctx.fillStyle = '#fff';
-    ctx.font = `700 24px ${FONT}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(i + 1), first.x - 4, first.y - 3);
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
+    if (first) drawNumber(ctx, first.x - 4, first.y - 4, isNext ? 24 : 20, isOpened && !isActive ? '#64748b' : color, String(i + 1), isNext);
   });
+
+  // いま見ている気づきの手がかりの語句を枠で囲む
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 5;
+  for (const r of view.cueRects ?? []) {
+    ctx.beginPath();
+    ctx.roundRect(r.x - 6, r.y - 2, r.w + 12, r.h + 4, 8);
+    ctx.stroke();
+  }
 }
 
 function wrapLines(ctx, text, maxWidth) {
@@ -207,31 +209,44 @@ function wrapLines(ctx, text, maxWidth) {
   return lines;
 }
 
-// 1つの注目箇所の、表示済みの気づき（count 個）を吹き出しとして描く。高さは内容に合わせる
-export function renderBubble(problem, index, count) {
+function drawChip(ctx, x, y, text, color) {
+  ctx.font = `700 20px ${FONT}`;
+  const w = ctx.measureText(text).width + 24;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, 32, 16);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText(text, x + 12, y + 5);
+  return w;
+}
+
+// 1つの注目箇所の吹き出し。entry = { opened, revealed }。高さは内容に合わせる
+export function renderBubble(problem, index, entry) {
   const focus = problem.focuses[index];
   const color = focusColor(index);
   const pad = 28;
   const textW = BUBBLE_W - pad * 2;
   const measure = document.createElement('canvas').getContext('2d');
 
-  const rows = focus.insights.slice(0, count).map(s => {
+  const rows = focus.insights.slice(0, entry.opened).map((s, i) => {
+    const answered = i < entry.revealed;
     measure.font = `400 26px ${FONT}`;
-    const cueLines = wrapLines(measure, `「${s.cue}」と書いてある`, textW - 50);
+    const subLines = wrapLines(measure, answered ? `「${s.cue}」と書いてある` : promptFor(s), textW);
     measure.font = `700 32px ${FONT}`;
-    const thoughtLines = wrapLines(measure, `→ ${s.thought}`, textW);
-    return { s, cueLines, thoughtLines, h: cueLines.length * 36 + thoughtLines.length * 44 + 28 };
+    const mainLines = answered ? wrapLines(measure, `→ ${s.thought}`, textW) : ['（もう一度タップで答え）'];
+    return { s, answered, subLines, mainLines, h: 40 + subLines.length * 36 + mainLines.length * 44 + 20 };
   });
   const headerH = 64;
-  const remaining = focus.insights.length - count;
-  const footerH = remaining > 0 ? 44 : 0;
+  const remaining = focus.insights.length - entry.opened;
+  const footerH = remaining > 0 && entry.opened === entry.revealed ? 44 : 0;
   const height = pad + headerH + rows.reduce((sum, r) => sum + r.h, 0) + footerH + pad;
 
   const canvas = document.createElement('canvas');
   canvas.width = BUBBLE_W;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
   ctx.strokeStyle = color;
   ctx.lineWidth = 6;
   ctx.beginPath();
@@ -240,39 +255,25 @@ export function renderBubble(problem, index, count) {
   ctx.stroke();
 
   ctx.textBaseline = 'top';
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.arc(pad + 22, pad + 22, 22, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.font = `700 26px ${FONT}`;
-  ctx.textAlign = 'center';
-  ctx.fillText(String(index + 1), pad + 22, pad + 8);
-  ctx.textAlign = 'left';
+  drawNumber(ctx, pad + 22, pad + 22, 22, color, String(index + 1), false);
+  const roleW = drawChip(ctx, pad + 56, pad + 6, ROLES[focus.role].label, '#475569');
+  ctx.fillStyle = '#f8fafc';
   ctx.font = `700 30px ${FONT}`;
-  ctx.fillText(`「${focus.quote}」`, pad + 56, pad + 4);
+  ctx.fillText(`「${focus.quote}」`, pad + 64 + roleW, pad + 4);
 
   let y = pad + headerH;
-  rows.forEach((r, i) => {
-    ctx.fillStyle = '#475569';
-    ctx.beginPath();
-    ctx.arc(pad + 17, y + 17, 17, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = `700 20px ${FONT}`;
-    ctx.textAlign = 'center';
-    ctx.fillText(String(i + 1), pad + 17, y + 6);
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#cbd5e1';
+  for (const r of rows) {
+    drawChip(ctx, pad, y, KINDS[r.s.kind].label, KIND_COLORS[r.s.kind]);
+    ctx.fillStyle = r.answered ? '#cbd5e1' : '#fde68a';
     ctx.font = `400 26px ${FONT}`;
-    r.cueLines.forEach((l, j) => ctx.fillText(l, pad + 50, y + 2 + j * 36));
-    ctx.fillStyle = '#f8fafc';
+    r.subLines.forEach((l, j) => ctx.fillText(l, pad, y + 40 + j * 36));
+    ctx.fillStyle = r.answered ? '#f8fafc' : '#94a3b8';
     ctx.font = `700 32px ${FONT}`;
-    const ty = y + r.cueLines.length * 36 + 6;
-    r.thoughtLines.forEach((l, j) => ctx.fillText(l, pad, ty + j * 44));
+    const ty = y + 40 + r.subLines.length * 36 + 4;
+    r.mainLines.forEach((l, j) => ctx.fillText(l, pad, ty + j * 44));
     y += r.h;
-  });
-  if (remaining > 0) {
+  }
+  if (footerH) {
     ctx.fillStyle = '#94a3b8';
     ctx.font = `400 24px ${FONT}`;
     ctx.fillText(`もう一度タップで次の気づき（あと${remaining}個）`, pad, y + 6);

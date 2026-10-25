@@ -2,14 +2,19 @@
 :root {
   --primary: #4f46e5;
   --primary-light: #818cf8;
-  --success: #10b981;
-  --danger: #ef4444;
-  --warning: #f59e0b;
+  --danger: #b91c1c;
   --bg: #f8fafc;
   --surface: #ffffff;
   --text: #1e293b;
   --text-secondary: #64748b;
   --border: #e2e8f0;
+  --warn-bg: #fef3c7;
+  --warn-text: #78350f;
+  --ok-bg: #d1fae5;
+  --ok-text: #065f46;
+  --error-bg: #fee2e2;
+  --error-text: #991b1b;
+  --cue-bg: #fde047;
   --radius: 12px;
   --radius-sm: 8px;
   color-scheme: light dark;
@@ -19,11 +24,19 @@
   :root {
     --primary: #6366f1;
     --primary-light: #a5b4fc;
+    --danger: #f87171;
     --bg: #0f172a;
     --surface: #1e293b;
     --text: #e2e8f0;
     --text-secondary: #94a3b8;
     --border: #334155;
+    --warn-bg: #451a03;
+    --warn-text: #fde68a;
+    --ok-bg: #064e3b;
+    --ok-text: #a7f3d0;
+    --error-bg: #450a0a;
+    --error-text: #fecaca;
+    --cue-bg: #a16207;
   }
 }
 
@@ -38,9 +51,48 @@ body {
   font-family: "Noto Sans JP", -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-#root {
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--primary-light);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--bg);
+}
+
+/* ---------- 画面の骨組み ---------- */
+.thinking-screen {
+  display: flex;
+  flex-direction: column;
   max-width: 480px;
+  min-height: 100dvh;
   margin: 0 auto;
+  padding-bottom: 24px;
+}
+
+.thinking-screen.editor {
+  max-width: 760px;
 }
 
 .app-header {
@@ -67,11 +119,18 @@ body {
   border-radius: 6px;
 }
 
-.thinking-screen {
-  display: flex;
-  flex-direction: column;
-  min-height: 100dvh;
-  padding-bottom: 16px;
+.app-footer {
+  margin: 24px 20px 0;
+  text-align: center;
+}
+
+.link-button {
+  border: none;
+  background: none;
+  color: var(--primary);
+  text-decoration: underline;
+  font-size: 14px;
+  cursor: pointer;
 }
 
 .thinking-intro {
@@ -79,6 +138,75 @@ body {
   font-size: 14px;
   line-height: 1.7;
   color: var(--text-secondary);
+}
+
+.thinking-intro a {
+  color: var(--primary);
+}
+
+/* ---------- ボタン ---------- */
+.thinking-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.thinking-item-actions button,
+.thinking-item-actions .button-link,
+.studio-row button,
+.draft-buttons button,
+.add-insight {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.thinking-item-actions .primary,
+.focus-actions .primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+/* ---------- 問題一覧 ---------- */
+.subject-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 20px 12px;
+}
+
+.subject-filter button {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.subject-filter button.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
 }
 
 .thinking-list {
@@ -99,8 +227,9 @@ body {
 
 .thinking-item-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
 }
 
 .thinking-item-title {
@@ -108,6 +237,10 @@ body {
 }
 
 .thinking-item-sub {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
   font-size: 13px;
   color: var(--text-secondary);
   margin-top: 2px;
@@ -115,41 +248,21 @@ body {
 
 .thinking-badge {
   font-size: 11px;
+  font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--primary-light);
+  background: var(--primary);
   color: #fff;
 }
 
 .thinking-badge.warn {
-  background: var(--warning);
+  background: var(--warn-bg);
+  color: var(--warn-text);
 }
 
-.thinking-item-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.thinking-item-actions button,
-.thinking-item-actions .button-link {
-  flex: 1;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 14px;
-  text-align: center;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.thinking-item-actions .primary {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
+.thinking-badge.done {
+  background: var(--ok-bg);
+  color: var(--ok-text);
 }
 
 .thinking-invalid {
@@ -158,7 +271,7 @@ body {
   color: var(--danger);
 }
 
-/* 2D表示 */
+/* ---------- 問題文（2D表示） ---------- */
 .thinking-problem {
   margin: 16px 20px;
   padding: 16px;
@@ -167,17 +280,18 @@ body {
   font-size: 18px;
   font-weight: 700;
   line-height: 2.2;
+  white-space: pre-wrap;
 }
 
 .focus-mark {
-  position: relative;
-  font: inherit;
-  color: inherit;
   padding: 0 2px;
   margin: 0 1px;
   border: none;
   border-bottom: 3px dashed var(--focus);
+  border-radius: 0;
   background: color-mix(in srgb, var(--focus) 10%, transparent);
+  font-weight: inherit;
+  line-height: inherit;
   cursor: pointer;
 }
 
@@ -191,26 +305,12 @@ body {
 
 .focus-mark.active {
   border-bottom-style: solid;
-  background: color-mix(in srgb, var(--focus) 40%, transparent);
+  background: color-mix(in srgb, var(--focus) 30%, transparent);
 }
 
 .focus-mark .focus-num {
   margin-right: 4px;
   vertical-align: 2px;
-}
-
-.focus-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--focus);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
 }
 
 .focus-mark.opened:not(.active) .focus-num {
@@ -222,11 +322,35 @@ body {
   animation: focus-pulse 1.4s ease-in-out infinite;
 }
 
+/* いま見ている気づきの手がかりの語句 */
+.cue-mark {
+  background: var(--cue-bg);
+  color: inherit;
+  border-radius: 4px;
+  outline: 2px solid var(--text);
+  outline-offset: 1px;
+}
+
+.focus-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--focus);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 @keyframes focus-pulse {
   50% { transform: scale(1.2); }
 }
 
-/* 番号ボタンと気づき */
+/* ---------- 番号ボタンと気づき ---------- */
 .focus-guide {
   margin: 0 20px;
   padding: 12px;
@@ -249,34 +373,31 @@ body {
 
 .focus-actions {
   display: flex;
+  gap: 8px;
   margin-top: 8px;
-}
-
-.focus-actions .focus-hint {
-  flex: 1;
 }
 
 .focus-actions button {
   flex: 1;
   padding: 10px 12px;
-  border: none;
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--primary);
-  color: #fff;
+  background: var(--surface);
   font-size: 14px;
   cursor: pointer;
 }
 
 .focus-chips {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
 }
 
 .focus-chip {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   border: 2px solid var(--focus);
   background: transparent;
@@ -287,6 +408,13 @@ body {
 
 .focus-chip.opened {
   background: color-mix(in srgb, var(--focus) 25%, transparent);
+  color: var(--text);
+}
+
+@media (prefers-color-scheme: dark) {
+  .focus-chip:not(.active) {
+    color: color-mix(in srgb, var(--focus) 55%, #fff);
+  }
 }
 
 .focus-chip.active {
@@ -298,22 +426,68 @@ body {
   animation: focus-pulse 1.4s ease-in-out infinite;
 }
 
-.focus-reset {
+.focus-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.mode-toggle input {
+  width: 18px;
+  height: 18px;
+}
+
+.focus-count {
   margin-left: auto;
+  color: var(--text-secondary);
+}
+
+.focus-reset {
   border: none;
   background: none;
   color: var(--text-secondary);
   font-size: 13px;
+  text-decoration: underline;
   cursor: pointer;
 }
 
-
 .insight-quote {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-weight: 700;
   margin-bottom: 6px;
+}
+
+.role-chip,
+.kind-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.role-chip {
+  border: 1px solid var(--text-secondary);
+  color: var(--text-secondary);
+}
+
+.kind-chip {
+  margin-right: 6px;
+  background: var(--kind);
+  color: #fff;
 }
 
 .insight {
@@ -325,26 +499,16 @@ body {
   animation: thought-in 0.3s ease;
 }
 
+.insight.prompt {
+  border-left-color: #ca8a04;
+  border-style: dashed;
+  border-width: 1px 1px 1px 4px;
+}
 
 .insight-cue {
   font-size: 13px;
   color: var(--text-secondary);
 }
-
-.insight-rank {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  margin-right: 6px;
-  border-radius: 50%;
-  background: var(--text-secondary);
-  color: var(--surface);
-  font-size: 11px;
-  font-weight: 700;
-}
-
 
 .insight-thought {
   margin-top: 2px;
@@ -356,7 +520,43 @@ body {
   from { opacity: 0; transform: translateY(6px); }
 }
 
-/* カード表示 */
+/* ---------- 振り返り ---------- */
+.summary-problem {
+  line-height: 1.8;
+}
+
+.summary-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 20px 8px;
+}
+
+.summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 20px;
+}
+
+.summary-focus {
+  margin-bottom: 16px;
+}
+
+.summary-insights {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.summary-insights .insight {
+  animation: none;
+}
+
+.summary-actions {
+  margin: 8px 20px 0;
+}
+
+/* ---------- 問題カード ---------- */
 .thinking-card-img {
   width: calc(100% - 40px);
   margin: 16px 20px 0;
@@ -364,7 +564,7 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.card-view .thinking-item-actions {
+.card-actions {
   margin: 0 20px;
 }
 
@@ -381,7 +581,7 @@ body {
   }
 }
 
-/* AR表示（画面全体） */
+/* ---------- AR表示（画面全体） ---------- */
 .ar-view {
   position: fixed;
   inset: 0;
@@ -405,13 +605,14 @@ body {
   align-items: center;
   gap: 8px;
   padding: 12px;
+  padding-top: max(12px, env(safe-area-inset-top));
 }
 
 .ar-back {
   padding: 8px 12px;
   border: none;
   border-radius: var(--radius-sm);
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(15, 23, 42, 0.75);
   color: #fff;
   font-size: 14px;
 }
@@ -420,11 +621,11 @@ body {
   font-size: 13px;
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(15, 23, 42, 0.75);
 }
 
 .ar-tracking.on {
-  background: rgba(16, 185, 129, 0.85);
+  background: rgba(4, 120, 87, 0.9);
 }
 
 .ar-status {
@@ -438,9 +639,19 @@ body {
   pointer-events: none;
 }
 
-.ar-error {
-  color: #fca5a5;
+.ar-error-box {
+  max-width: 360px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: rgba(15, 23, 42, 0.92);
+  line-height: 1.7;
   pointer-events: auto;
+}
+
+.ar-error-box .focus-actions button:not(.primary) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: transparent;
+  color: #fff;
 }
 
 .ar-bottom {
@@ -454,7 +665,7 @@ body {
 .ar-bottom .focus-guide {
   max-height: 40dvh; /* カードが隠れすぎないように */
   overflow-y: auto;
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(15, 23, 42, 0.88);
   border-color: transparent;
   color: #fff;
 }
@@ -464,13 +675,369 @@ body {
 }
 
 .ar-bottom .insight-cue,
-.ar-bottom .focus-hint.small {
+.ar-bottom .focus-hint.small,
+.ar-bottom .focus-count,
+.ar-bottom .focus-reset,
+.ar-bottom .role-chip {
   color: #cbd5e1;
+  border-color: #cbd5e1;
 }
 
+.ar-bottom .focus-chip.opened {
+  color: #fff;
+}
 
+.ar-bottom .focus-actions button:not(.primary) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: transparent;
+  color: #fff;
+}
 
-.thinking-item-actions button,
-.thinking-item-actions .button-link {
-  white-space: nowrap;
+/* ---------- 作成ツール ---------- */
+.studio-section,
+.editor-section {
+  margin: 16px 20px 0;
+}
+
+.studio-section h3,
+.editor-section h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.studio-section .thinking-list {
+  padding: 0;
+}
+
+.studio-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.studio-row select,
+.studio-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.studio-row button {
+  flex: none;
+}
+
+.studio-import {
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.studio-import summary {
+  cursor: pointer;
+  color: var(--primary);
+}
+
+.studio-import textarea,
+.editor textarea,
+.editor input:not([type="checkbox"]),
+.editor select,
+.studio-row select,
+.studio-row input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 15px;
+}
+
+.studio-import textarea {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.draft-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.draft-buttons {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.draft-buttons button {
+  flex: none;
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
+.status-ok,
+.status-warn,
+.status-error {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.status-ok {
+  background: var(--ok-bg);
+  color: var(--ok-text);
+}
+
+.status-warn {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+.status-error {
+  background: var(--error-bg);
+  color: var(--error-text);
+}
+
+p.status-ok {
+  display: inline-block;
+  margin: 0;
+}
+
+.form-error,
+.field-error {
+  color: var(--danger);
+  font-size: 13px;
+  margin: 4px 0;
+}
+
+.form-notice {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  font-size: 13px;
+}
+
+.editor-saved {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.editor-section {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.field input,
+.field select,
+.field textarea {
+  font-weight: 400;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0 12px;
+}
+
+.field-help {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 2px 0;
+}
+
+.field-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.field-inline select {
+  width: auto;
+}
+
+.field-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.field-check input {
+  width: 18px;
+  height: 18px;
+}
+
+.editor-problem {
+  padding: 12px;
+  margin-bottom: 8px;
+  border: 1px dashed var(--text-secondary);
+  border-radius: var(--radius-sm);
+  font-size: 18px;
+  line-height: 2.2;
+  white-space: pre-wrap;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.editor-focus {
+  border-bottom: 3px solid var(--focus);
+  background: color-mix(in srgb, var(--focus) 15%, transparent);
+}
+
+/* 番号は ::before で出す（選択範囲の文字位置に含めないため） */
+.editor-focus::before {
+  content: attr(data-num);
+  display: inline-block;
+  min-width: 18px;
+  margin-right: 2px;
+  border-radius: 50%;
+  background: var(--focus);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  vertical-align: 3px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.editor-focuses,
+.editor-insights {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.editor-focus-card {
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--focus);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.editor-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor-row .grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-row select {
+  width: auto;
+  flex: none;
+}
+
+.row-buttons {
+  display: flex;
+  gap: 2px;
+  flex: none;
+}
+
+.row-buttons button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.editor-insight {
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.editor-insight textarea {
+  margin-top: 6px;
+}
+
+.editor-index {
+  flex: none;
+  width: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.char-count {
+  margin: 2px 0 0;
+  font-size: 12px;
+  text-align: right;
+  color: var(--text-secondary);
+}
+
+.char-count.over {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.add-insight {
+  width: 100%;
+}
+
+.check-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.check-list.errors {
+  color: var(--error-text);
+}
+
+.check-list.warnings {
+  color: var(--warn-text);
+}
+
+.classify-guide ul,
+.classify-guide ol {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* ---------- 動きを減らす設定 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

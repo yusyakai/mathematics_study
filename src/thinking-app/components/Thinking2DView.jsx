@@ -1,49 +1,64 @@
-import { useFocusProgress, focusColor } from '../lib/loadThinking';
-import FocusGuide from './FocusGuide';
+import { useLearning, currentInsight } from '../lib/loadThinking.js';
+import { ROLES } from '../lib/catalog.js';
+import { focusColor } from '../lib/colors.js';
+import FocusGuide from './FocusGuide.jsx';
 
 // カメラを使わない表示。問題文の注目箇所をタップするたびに気づきが1個ずつ出る
-export default function Thinking2DView({ problem, onBack }) {
-  const progress = useFocusProgress(problem);
+export default function Thinking2DView({ problem, onBack, onSummary }) {
+  const learning = useLearning(problem);
 
   return (
     <div className="thinking-screen">
-      <div className="app-header">
-        <button className="back-btn" onClick={onBack}>←</button>
+      <header className="app-header">
+        <button className="back-btn" onClick={onBack} aria-label="戻る">←</button>
         <h2>{problem.title}</h2>
-      </div>
+        {problem.draft && <span className="thinking-badge warn">下書き</span>}
+      </header>
 
       <div className="thinking-problem">
-        <ProblemText problem={problem} progress={progress} />
+        <ProblemText problem={problem} learning={learning} />
       </div>
 
-      <FocusGuide problem={problem} progress={progress} />
+      <FocusGuide problem={problem} learning={learning} onSummary={onSummary} />
     </div>
   );
 }
 
-function ProblemText({ problem, progress }) {
-  if (!progress.shown) return problem.problem;
+// 問題文。注目箇所はボタンになり、開いている箇所ではいま見ている気づきの手がかりの語句を強調する
+function ProblemText({ problem, learning }) {
+  const { state, nextId, select } = learning;
+  const text = problem.problem;
+  if (!state.shown) return text;
+
+  const cueSpan = currentInsight(problem, state)?.cueSpan;
   const parts = [];
   let pos = 0;
-  const ordered = problem.focuses
-    .map((f, i) => ({ ...f, index: i }))
-    .sort((a, b) => a.span[0] - b.span[0]);
-  for (const f of ordered) {
-    parts.push(problem.problem.slice(pos, f.span[0]));
-    const state = f.id === progress.activeId ? 'active' : (progress.countOf(f.id) > 0 ? 'opened' : '');
+  const ordered = problem.focuses.map((f, i) => ({ f, i })).sort((a, b) => a.f.span[0] - b.f.span[0]);
+  for (const { f, i } of ordered) {
+    parts.push(text.slice(pos, f.span[0]));
+    const isActive = f.id === state.activeId;
+    const status = isActive ? 'active' : state.focus[f.id].opened > 0 ? 'opened' : '';
+    const inner = isActive && cueSpan
+      ? [
+          text.slice(f.span[0], cueSpan[0]),
+          <mark key="cue" className="cue-mark">{text.slice(cueSpan[0], cueSpan[1])}</mark>,
+          text.slice(cueSpan[1], f.span[1]),
+        ]
+      : text.slice(f.span[0], f.span[1]);
     parts.push(
       <button
         key={f.id}
-        className={`focus-mark ${state} ${f.id === progress.next?.id ? 'next' : ''}`}
-        style={{ '--focus': focusColor(f.index) }}
-        onClick={() => progress.select(f.id)}
+        className={`focus-mark ${status} ${f.id === nextId ? 'next' : ''}`}
+        style={{ '--focus': focusColor(i) }}
+        onClick={() => select(f.id)}
+        aria-label={`${i + 1}番 ${ROLES[f.role].label}「${f.quote}」`}
       >
-        <span className="focus-num">{f.index + 1}</span>
-        {problem.problem.slice(f.span[0], f.span[1])}
+        <span className="focus-num" aria-hidden="true">{i + 1}</span>
+        {inner}
       </button>
     );
     pos = f.span[1];
   }
-  parts.push(problem.problem.slice(pos));
+  parts.push(text.slice(pos));
   return parts;
 }

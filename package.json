@@ -7,8 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "lint:thinking": "eslint src/thinking-app scripts .claude/hooks",
+    "test": "node --test \"src/**/*.test.js\"",
     "preview": "vite preview",
-    "validate:thinking": "node scripts/validate-thinking.mjs"
+    "validate:thinking": "node scripts/validate-thinking.mjs",
+    "check:thinking": "npm run validate:thinking && npm run lint:thinking && npm test && npm run build"
   },
   "dependencies": {
     "katex": "^0.16.44",
