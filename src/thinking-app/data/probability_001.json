@@ -1,47 +1,51 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "probability_001",
   "title": "確率 基本",
   "subject": "数学A",
   "unit": "確率",
   "difficulty": "C",
   "problem": "赤玉3個、白玉5個が入った袋から2個取り出すとき、2個とも赤玉である確率を求めよ。",
+  "origin": "自作",
   "focuses": [
     {
       "id": "f1",
       "quote": "確率を求めよ",
+      "role": "question",
       "priority": 1,
       "insights": [
-        { "priority": 1, "cue": "確率", "thought": "（条件に合う場合の数）÷（全体の場合の数）で求める" },
-        { "priority": 2, "cue": "確率", "thought": "同じ色の玉も1個ずつ区別して数える（どの取り出し方も同じ確からしさにするため）" }
+        { "priority": 1, "kind": "select", "cue": "確率", "thought": "（あてはまる場合の数）÷（全体の場合の数）で求める" },
+        { "priority": 2, "kind": "caution", "cue": "確率", "thought": "同じ色の玉も1個ずつ区別して数える（どの取り出し方も同様に確からしくするため）" }
       ]
     },
     {
       "id": "f2",
       "quote": "2個取り出す",
+      "role": "situation",
       "priority": 2,
       "insights": [
-        { "priority": 1, "cue": "取り出す", "thought": "取り出すだけで並べない → 順番は関係ないので nPr ではなく nCr で数える" },
-        { "priority": 2, "cue": "2個", "thought": "全体の場合の数は、袋の中の全部の玉から2個を選ぶ選び方" },
-        { "priority": 3, "cue": "2個取り出す", "thought": "2個を同時に取り出す → 1個目と2個目で別々に考えなくてよい" }
+        { "priority": 1, "kind": "interpret", "cue": "取り出す", "thought": "取り出すだけで並べない → 選んだ順番は関係ない" },
+        { "priority": 2, "kind": "select", "cue": "取り出す", "thought": "順番を考えないので、nPr ではなく nCr で数える" }
       ]
     },
     {
       "id": "f3",
       "quote": "赤玉3個、白玉5個",
+      "role": "condition",
       "priority": 3,
       "insights": [
-        { "priority": 1, "cue": "赤玉3個、白玉5個", "thought": "玉は全部で 3 + 5 = 8 個 → 全体は ₈C₂ = 28 通り" },
-        { "priority": 2, "cue": "赤玉3個", "thought": "赤玉だけを選ぶときは、3個の中から選ぶ" }
+        { "priority": 1, "kind": "interpret", "cue": "赤玉3個、白玉5個", "thought": "玉は全部で 3 + 5 = 8 個" },
+        { "priority": 2, "kind": "select", "cue": "赤玉3個、白玉5個", "thought": "全体の場合の数は、8個から2個を選ぶ ₈C₂ 通り" }
       ]
     },
     {
       "id": "f4",
       "quote": "2個とも赤玉",
+      "role": "question",
       "priority": 4,
       "insights": [
-        { "priority": 1, "cue": "2個とも", "thought": "2個の両方が赤 → 赤玉3個から2個を選ぶ ₃C₂ = 3 通り" },
-        { "priority": 2, "cue": "赤玉", "thought": "白玉は1個も選ばない → 白玉5個は数に入れなくてよい" }
+        { "priority": 1, "kind": "interpret", "cue": "2個とも", "thought": "取り出した2個が両方とも赤 → 白玉は1個も入らない" },
+        { "priority": 2, "kind": "select", "cue": "赤玉", "thought": "あてはまる場合の数は、赤玉3個から2個を選ぶ ₃C₂ 通り" }
       ]
     }
   ],

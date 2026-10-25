@@ -1,15 +1,24 @@
 // スマホのカメラで問題カードを認識し、注目箇所と気づきを重ねて表示する
 // MindAR（画像認識AR、無料のOSS）と three.js は CDN から必要なときだけ読み込む。
-// MindAR が "three" を名前で import するため、index.html の importmap と同じURLを使うこと。
-import {
-  CARD_W, CARD_H, BUBBLE_W, ensureFonts, renderCard, renderHighlight, renderBubble, hitTestFocus,
-} from './canvasRender';
-import { focusColor } from './loadThinking';
+// MindAR が "three" を名前で import するため、thinking/index.html の importmap と同じURLを使うこと。
+import { CARD_W, CARD_H, BUBBLE_W, ensureFonts, renderCard, renderHighlight, renderBubble } from './canvasRender.js';
+import { focusColor } from './colors.js';
+import { hitTestFocus } from './geometry.js';
 
 const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 const MINDAR_URL = 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js';
 const MINDAR_THREE_URL = 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js';
 const CACHE_NAME = 'thinking-ar-targets-v1';
+
+// AR を始められなかった理由。code ごとに画面で案内を変える
+//   insecure: HTTPS でない / unsupported: カメラ非対応 / load: 部品の読み込み失敗 / camera: カメラを起動できない / aborted: 中断
+export class ARError extends Error {
+  constructor(code, cause) {
+    super(code);
+    this.code = code;
+    this.cause = cause;
+  }
+}
 
 // カード画像をハッシュ化して、同じカードは認識データを再計算しない
 async function cardKey(canvas) {
@@ -46,20 +55,41 @@ export async function prepareCard(problem) {
   return renderCard(problem);
 }
 
-// container に AR を開始する。setState で表示を切り替え、stop で終了する
-// onSelect(focusId): カード上の注目箇所がタップされたとき
-export async function startAR({ container, problem, onStatus, onTracking, onSelect }) {
-  onStatus?.('ライブラリを読み込み中…');
-  const [THREE, { MindARThree }] = await Promise.all([
-    import(/* @vite-ignore */ THREE_URL),
-    import(/* @vite-ignore */ MINDAR_THREE_URL),
-  ]);
+// container に AR を開始する。setView で表示を切り替え、stop で終了する
+//   onSelect(focusId): カード上の注目箇所がタップされたとき
+//   signal: AbortSignal。画面を離れたら準備の途中でも中断する
+export async function startAR({ container, problem, onStatus, onTracking, onSelect, signal }) {
+  const checkAborted = () => {
+    if (signal?.aborted) throw new ARError('aborted');
+  };
+  if (!window.isSecureContext) throw new ARError('insecure');
+  if (!navigator.mediaDevices?.getUserMedia) throw new ARError('unsupported');
+
+  onStatus?.('ARの部品を読み込み中…');
+  let THREE;
+  let MindARThree;
+  try {
+    [THREE, { MindARThree }] = await Promise.all([
+      import(/* @vite-ignore */ THREE_URL),
+      import(/* @vite-ignore */ MINDAR_THREE_URL),
+    ]);
+  } catch (e) {
+    throw new ARError('load', e);
+  }
+  checkAborted();
 
   onStatus?.('カードを準備中…');
   const card = await prepareCard(problem);
-  const buffer = await compileTarget(card.canvas, p => onStatus?.(`カードの特徴を解析中… ${Math.round(p)}%`));
-  const targetUrl = URL.createObjectURL(new Blob([buffer]));
+  checkAborted();
+  let buffer;
+  try {
+    buffer = await compileTarget(card.canvas, p => onStatus?.(`カードの特徴を解析中… ${Math.round(p)}%`));
+  } catch (e) {
+    throw new ARError('load', e);
+  }
+  checkAborted();
 
+  const targetUrl = URL.createObjectURL(new Blob([buffer]));
   // セッションごとに専用の要素を使う（終了時に他のセッションの要素を消さないため）
   const root = document.createElement('div');
   root.style.cssText = 'position:absolute;inset:0;overflow:hidden';
@@ -82,26 +112,22 @@ export async function startAR({ container, problem, onStatus, onTracking, onSele
   // MindAR の座標: カード幅 = 1、中心が原点
   const cardH = CARD_H / CARD_W;
   const toCard = (px, py, z = 0) => new THREE.Vector3(px / CARD_W - 0.5, (CARD_H / 2 - py) / CARD_W, z);
-
   const disposables = [];
-  const texturePlane = (canvas, width, height) => {
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
-    const geometry = new THREE.PlaneGeometry(width, height);
-    disposables.push(texture, material, geometry);
-    return { mesh: new THREE.Mesh(geometry, material), texture };
-  };
 
   const highlightCanvas = document.createElement('canvas');
   highlightCanvas.width = CARD_W;
   highlightCanvas.height = CARD_H;
-  const highlight = texturePlane(highlightCanvas, 1, cardH);
-  highlight.mesh.position.z = 0.002;
-  anchor.group.add(highlight.mesh);
+  const highlightTexture = new THREE.CanvasTexture(highlightCanvas);
+  highlightTexture.colorSpace = THREE.SRGBColorSpace;
+  const highlightMaterial = new THREE.MeshBasicMaterial({ map: highlightTexture, transparent: true, depthWrite: false });
+  const highlightGeometry = new THREE.PlaneGeometry(1, cardH);
+  const highlight = new THREE.Mesh(highlightGeometry, highlightMaterial);
+  highlight.position.z = 0.002;
+  anchor.group.add(highlight);
+  disposables.push(highlightTexture, highlightMaterial, highlightGeometry);
 
   // 開いている注目箇所の吹き出し（カードの上に少し手前へ浮かべ、注目箇所から線でつなぐ）
-  // 気づきが1個増えるたびに描き直す
+  // 問いかけ・答えが出るたびに描き直す
   const bubbleScale = 0.9 / BUBBLE_W;
   const bubbleBottom = new THREE.Vector3(0, cardH / 2 + 0.05, 0.1);
   const lineGeometry = new THREE.CylinderGeometry(0.004, 0.004, 1, 8);
@@ -112,10 +138,10 @@ export async function startAR({ container, problem, onStatus, onTracking, onSele
   disposables.push(lineGeometry, lineMaterial);
   let bubble = null; // { key, mesh, dispose }
 
-  const updateBubble = (state) => {
-    const index = problem.focuses.findIndex(f => f.id === state.activeId);
-    const count = index >= 0 ? (state.revealed[state.activeId] ?? 0) : 0;
-    const key = count > 0 ? `${state.activeId}:${count}` : null;
+  const updateBubble = (view) => {
+    const index = problem.focuses.findIndex(f => f.id === view.activeId);
+    const entry = index >= 0 ? view.focus[view.activeId] : null;
+    const key = entry && entry.opened > 0 ? `${view.activeId}:${entry.opened}:${entry.revealed}` : null;
     if (bubble?.key === key) return;
     if (bubble) {
       anchor.group.remove(bubble.mesh);
@@ -125,7 +151,7 @@ export async function startAR({ container, problem, onStatus, onTracking, onSele
     line.visible = false;
     if (!key) return;
 
-    const canvas = renderBubble(problem, index, count);
+    const canvas = renderBubble(problem, index, entry);
     const h = canvas.height * bubbleScale;
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -145,10 +171,17 @@ export async function startAR({ container, problem, onStatus, onTracking, onSele
     line.visible = true;
   };
 
-  const setState = (state) => {
-    renderHighlight(highlightCanvas, card.focuses, state);
-    highlight.texture.needsUpdate = true;
-    updateBubble(state);
+  // view: { shown, activeId, nextId, focus: { [id]: { opened, revealed } }, cueSpan }
+  const setView = (view) => {
+    renderHighlight(highlightCanvas, card, {
+      shown: view.shown,
+      activeId: view.activeId,
+      nextId: view.nextId,
+      openedIds: new Set(Object.keys(view.focus).filter(id => view.focus[id].opened > 0)),
+      cueRects: card.rectsFor(view.cueSpan),
+    });
+    highlightTexture.needsUpdate = true;
+    updateBubble(view);
   };
 
   // タップした位置をカード上の座標に変換して、注目箇所を判定する
@@ -161,29 +194,47 @@ export async function startAR({ container, problem, onStatus, onTracking, onSele
       -((e.clientY - rect.top) / rect.height) * 2 + 1,
     );
     raycaster.setFromCamera(ndc, camera);
-    const hit = raycaster.intersectObject(highlight.mesh)[0];
+    const hit = raycaster.intersectObject(highlight)[0];
     if (!hit?.uv) return;
     const id = hitTestFocus(card.focuses, hit.uv.x * CARD_W, (1 - hit.uv.y) * CARD_H);
     if (id) onSelect?.(id);
   };
   root.addEventListener('pointerup', onPointer);
 
+  let stopped = false;
+  const cleanup = () => {
+    if (stopped) return;
+    stopped = true;
+    root.removeEventListener('pointerup', onPointer);
+    renderer.setAnimationLoop(null);
+    // mindar.stop() は起動途中で失敗したときに例外になるため、同じ処理を個別に行う
+    try {
+      mindar.controller?.stopProcessVideo();
+    } catch {
+      // 認識処理が始まっていない
+    }
+    mindar.video?.srcObject?.getTracks().forEach(t => t.stop());
+    mindar.video?.remove();
+    renderer.dispose();
+    bubble?.dispose();
+    disposables.forEach(d => d.dispose());
+    URL.revokeObjectURL(targetUrl);
+    root.remove();
+  };
+
   onStatus?.('カメラを起動中…');
-  await mindar.start();
+  try {
+    await mindar.start();
+  } catch (e) {
+    cleanup();
+    throw new ARError('camera', e);
+  }
+  if (signal?.aborted) {
+    cleanup();
+    throw new ARError('aborted');
+  }
   renderer.setAnimationLoop(() => renderer.render(scene, camera));
   onStatus?.(null);
 
-  return {
-    setState,
-    stop() {
-      root.removeEventListener('pointerup', onPointer);
-      renderer.setAnimationLoop(null);
-      mindar.stop();
-      renderer.dispose();
-      bubble?.dispose();
-      disposables.forEach(d => d.dispose());
-      URL.revokeObjectURL(targetUrl);
-      root.remove();
-    },
-  };
+  return { setView, stop: cleanup };
 }
