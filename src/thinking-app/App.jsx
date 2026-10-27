@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { thinkingProblems, invalidThinking } from './lib/loadThinking.js';
 import { SUBJECTS } from './lib/catalog.js';
 import { readStore, STORE_KEYS } from './lib/storage.js';
-import Thinking2DView from './components/Thinking2DView.jsx';
-import ThinkingARView from './components/ThinkingARView.jsx';
+import { preferredDisplay } from './lib/display.js';
+import LearnView from './components/LearnView.jsx';
 import ThinkingCardView from './components/ThinkingCardView.jsx';
 import SummaryView from './components/SummaryView.jsx';
 import StudioView from './components/StudioView.jsx';
@@ -33,28 +33,26 @@ function useScreens() {
 }
 
 // 着眼点トレーナー: 問題一覧と各画面を切り替える
+//   learn の display: 'scene'（立体）| 'text'（文字）| 'camera'（カメラ）
 export default function App() {
   const { view, open, replace, back } = useScreens();
   const { problem } = view;
-  const toSummary = () => replace({ mode: 'summary', problem });
 
   switch (view.mode) {
-    case '2d':
-      return <Thinking2DView key={view.uid} problem={problem} onBack={back} onSummary={toSummary} />;
-    case 'ar':
+    case 'learn':
       return (
-        <ThinkingARView
+        <LearnView
           key={view.uid}
           problem={problem}
+          initialDisplay={view.display ?? preferredDisplay()}
           onBack={back}
-          onFallback={() => replace({ mode: '2d', problem })}
-          onSummary={toSummary}
+          onSummary={() => replace({ mode: 'summary', problem })}
         />
       );
     case 'card':
       return <ThinkingCardView key={view.uid} problem={problem} onBack={back} />;
     case 'summary':
-      return <SummaryView key={view.uid} problem={problem} onBack={back} onRetry={() => replace({ mode: '2d', problem })} />;
+      return <SummaryView key={view.uid} problem={problem} onBack={back} onRetry={() => replace({ mode: 'learn', problem })} />;
     case 'studio':
       return <StudioView key={view.uid} onBack={back} onOpen={open} />;
     case 'editor':

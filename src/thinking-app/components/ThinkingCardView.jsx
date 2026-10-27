@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { prepareCard } from '../lib/arScene.js';
+import { prepareCard } from '../lib/canvasRender.js';
 
 // AR の認識対象になる問題カード。印刷するか、PC の画面に表示してスマホを向ける
 export default function ThinkingCardView({ problem, onBack }) {

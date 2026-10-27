@@ -73,3 +73,23 @@ export const hasPending = (state, id) => state.focus[id].opened > state.focus[id
 export const revealedTotal = (state) => state.order.reduce((n, id) => n + state.focus[id].revealed, 0);
 
 export const isComplete = (state) => state.order.every(id => state.focus[id].revealed === state.totals[id]);
+
+// いま行うのが自然な「次の操作」（画面のボタンとキー操作で同じものを使う）
+//   show     … 見る順番（番号）を表示する
+//   advance  … 開いている注目箇所で進める（step: 'answer' 答えを見る / 'more' 次の気づき・問いかけ）
+//   select   … 別の注目箇所を開く（step: 'first' 最初 / 'next' 次の注目箇所 / 'continue' 見終わっていない箇所の続き）
+//   summary  … すべて見終えたので振り返りへ
+export function nextAction(state) {
+  if (!state.shown) return { type: 'show' };
+  const activeId = state.activeId;
+  if (activeId) {
+    const { opened, revealed } = state.focus[activeId];
+    if (opened > revealed) return { type: 'advance', step: 'answer' };
+    if (opened < state.totals[activeId]) return { type: 'advance', step: 'more', remaining: state.totals[activeId] - opened };
+  }
+  const next = nextFocusId(state);
+  if (next) return { type: 'select', id: next, step: activeId ? 'next' : 'first' };
+  const unfinished = state.order.find(id => id !== activeId && state.focus[id].revealed < state.totals[id]);
+  if (unfinished) return { type: 'select', id: unfinished, step: 'continue' };
+  return { type: 'summary' };
+}

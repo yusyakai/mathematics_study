@@ -275,7 +275,7 @@ export default function EditorView({ draftKey, onBack, onOpen }) {
       <section className="editor-section">
         <h3>5. 確認と書き出し</h3>
         <div className="thinking-item-actions">
-          <button className="primary" disabled={!check.problem} onClick={() => onOpen({ mode: '2d', problem: check.problem })}>画面で確認</button>
+          <button className="primary" disabled={!check.problem} onClick={() => onOpen({ mode: 'learn', problem: check.problem })}>画面で確認</button>
           <button disabled={!check.problem} onClick={() => onOpen({ mode: 'card', problem: check.problem })}>カード</button>
         </div>
         {!check.problem && <p className="field-help">エラーがなくなると確認できます。</p>}

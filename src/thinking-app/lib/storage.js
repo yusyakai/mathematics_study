@@ -36,6 +36,7 @@ export function useStoredState(key, fallback) {
 
 export const STORE_KEYS = {
   settings: 'settings.v1', // { promptFirst: boolean }
+  display: 'display.v1', // 画面で見るときの表示 'scene'（立体）| 'text'（文字）
   completed: 'completed.v1', // { [problemId]: 完了日時のISO文字列 }
   drafts: 'drafts.v1', // { [draftId]: 作成中のデータ }
 };
