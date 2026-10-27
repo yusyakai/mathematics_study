@@ -2,6 +2,7 @@
 //   renderCard      : 印刷・画面表示する問題カード（AR の認識対象）と、文字の配置
 //   renderHighlight : カードに重ねる注目箇所の番号・ハイライトと、手がかりの語句の強調
 //   renderBubble    : 開いている注目箇所の上に浮かべる吹き出し（出した気づきと問いかけ）
+// 画面の立体表示・カメラのAR表示（・将来のスマートグラス）で同じ画像を使う。
 // 端末ごとのフォント差でカードの見た目と注目箇所の位置がずれないよう、Webフォントで描く
 import { KINDS, ROLES, promptFor } from './catalog.js';
 import { rectsForSpan } from './geometry.js';
@@ -20,7 +21,7 @@ export async function ensureFonts(problem) {
     ...problem.focuses.flatMap(f => [f.quote, ...f.insights.flatMap(s => [s.cue, s.thought, promptFor(s)])]),
     ...Object.values(KINDS).map(k => k.label),
     ...Object.values(ROLES).map(r => r.label),
-    '着眼点トレーナー「」→と書いてあるもう一度タップで答え次の気づきあと個0123456789',
+    '着眼点トレーナー「」→と書いてあるもう一度タップクリックで答え次の気づきあと個0123456789',
   ].join('');
   try {
     await Promise.race([
@@ -90,7 +91,8 @@ function layoutChars(ctx, text, maxWidth, lineHeight) {
   return { chars, lines: line + 1 };
 }
 
-// 戻り値: { canvas, focuses: [{ id, rects }], rectsFor(span) }
+// 戻り値: { canvas, focuses: [{ id, rects }], rectsFor(span), margin }
+//   margin: 線を通す余白（x: 文字の右端と枠の間、top: 白い部分の上端）。線が文字の上を横切らないようにするため
 export function renderCard(problem) {
   const canvas = document.createElement('canvas');
   canvas.width = CARD_W;
@@ -131,6 +133,7 @@ export function renderCard(problem) {
     canvas,
     focuses: problem.focuses.map(f => ({ id: f.id, rects: rectsFor(f.span) })),
     rectsFor,
+    margin: { x: (left + maxWidth + CARD_W - BORDER) / 2, top: BORDER },
   };
 }
 
@@ -221,8 +224,15 @@ function drawChip(ctx, x, y, text, color) {
   return w;
 }
 
+// フォントを読み込んでからカードを描く（カード表示・立体表示・AR で共通）
+export async function prepareCard(problem) {
+  await ensureFonts(problem);
+  return renderCard(problem);
+}
+
 // 1つの注目箇所の吹き出し。entry = { opened, revealed }。高さは内容に合わせる
-export function renderBubble(problem, index, entry) {
+//   action: 操作の呼び方（スマホ・ARは「タップ」、PCは「クリック」）
+export function renderBubble(problem, index, entry, { action = 'タップ' } = {}) {
   const focus = problem.focuses[index];
   const color = focusColor(index);
   const pad = 28;
@@ -234,7 +244,7 @@ export function renderBubble(problem, index, entry) {
     measure.font = `400 26px ${FONT}`;
     const subLines = wrapLines(measure, answered ? `「${s.cue}」と書いてある` : promptFor(s), textW);
     measure.font = `700 32px ${FONT}`;
-    const mainLines = answered ? wrapLines(measure, `→ ${s.thought}`, textW) : ['（もう一度タップで答え）'];
+    const mainLines = answered ? wrapLines(measure, `→ ${s.thought}`, textW) : [`（もう一度${action}で答え）`];
     return { s, answered, subLines, mainLines, h: 40 + subLines.length * 36 + mainLines.length * 44 + 20 };
   });
   const headerH = 64;
@@ -276,7 +286,7 @@ export function renderBubble(problem, index, entry) {
   if (footerH) {
     ctx.fillStyle = '#94a3b8';
     ctx.font = `400 24px ${FONT}`;
-    ctx.fillText(`もう一度タップで次の気づき（あと${remaining}個）`, pad, y + 6);
+    ctx.fillText(`もう一度${action}で次の気づき（あと${remaining}個）`, pad, y + 6);
   }
 
   return canvas;

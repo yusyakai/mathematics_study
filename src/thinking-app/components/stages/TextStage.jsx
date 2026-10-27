@@ -1,30 +1,18 @@
-import { useLearning, currentInsight } from '../lib/loadThinking.js';
-import { ROLES } from '../lib/catalog.js';
-import { focusColor } from '../lib/colors.js';
-import FocusGuide from './FocusGuide.jsx';
+import { currentInsight } from '../../lib/loadThinking.js';
+import { ROLES } from '../../lib/catalog.js';
+import { focusColor } from '../../lib/colors.js';
 
-// カメラを使わない表示。問題文の注目箇所をタップするたびに気づきが1個ずつ出る
-export default function Thinking2DView({ problem, onBack, onSummary }) {
-  const learning = useLearning(problem);
-
+// 文字表示：問題文の注目箇所をボタンにし、いま見ている気づきの手がかりの語句を強調する
+export default function TextStage({ problem, learning }) {
   return (
-    <div className="thinking-screen">
-      <header className="app-header">
-        <button className="back-btn" onClick={onBack} aria-label="戻る">←</button>
-        <h2>{problem.title}</h2>
-        {problem.draft && <span className="thinking-badge warn">下書き</span>}
-      </header>
-
+    <div className="text-stage">
       <div className="thinking-problem">
         <ProblemText problem={problem} learning={learning} />
       </div>
-
-      <FocusGuide problem={problem} learning={learning} onSummary={onSummary} />
     </div>
   );
 }
 
-// 問題文。注目箇所はボタンになり、開いている箇所ではいま見ている気づきの手がかりの語句を強調する
 function ProblemText({ problem, learning }) {
   const { state, nextId, select } = learning;
   const text = problem.problem;

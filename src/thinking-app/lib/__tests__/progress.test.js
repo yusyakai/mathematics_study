@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initProgress, progressReducer, nextFocusId, hasPending, revealedTotal, isComplete } from '../progress.js';
+import { initProgress, progressReducer, nextFocusId, hasPending, revealedTotal, isComplete, nextAction } from '../progress.js';
 import { normalizeProblem } from '../model.js';
 import { validProblem } from './fixtures.js';
 
@@ -80,4 +80,25 @@ test('存在しない注目箇所や未知の操作では状態が変わらな�
   const s = initProgress(problem);
   assert.equal(progressReducer(s, sel('none')), s);
   assert.equal(progressReducer(s, { type: 'unknown' }), s);
+});
+
+test('次の操作: 番号表示 → 最初の注目箇所 → 気づき → 次の注目箇所 → 振り返り', () => {
+  let s = initProgress(problem);
+  assert.deepEqual(nextAction(s), { type: 'show' });
+  s = progressReducer(s, { type: 'show' });
+  assert.deepEqual(nextAction(s), { type: 'select', id: 'f1', step: 'first' });
+  s = progressReducer(s, sel('f1'));
+  assert.deepEqual(nextAction(s), { type: 'select', id: 'f2', step: 'next' });
+  s = progressReducer(s, sel('f2'));
+  assert.deepEqual(nextAction(s), { type: 'advance', step: 'more', remaining: 1 });
+  s = progressReducer(s, adv);
+  assert.deepEqual(nextAction(s), { type: 'summary' });
+});
+
+test('次の操作: 問いかけが出ていれば答え、見終わっていない箇所があれば続き', () => {
+  const pending = run([sel('f2')], true);
+  assert.deepEqual(nextAction(pending), { type: 'advance', step: 'answer' });
+  // f2 を開いてから f1 を見終える → f2 の残りへ
+  const s = run([sel('f2'), sel('f1')]);
+  assert.deepEqual(nextAction(s), { type: 'select', id: 'f2', step: 'continue' });
 });

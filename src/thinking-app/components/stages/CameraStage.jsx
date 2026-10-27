@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLearning, currentInsight } from '../lib/loadThinking.js';
-import { startAR } from '../lib/arScene.js';
-import FocusGuide from './FocusGuide.jsx';
+import { startCamera } from '../../lib/hosts/cameraHost.js';
 
-// AR を始められなかったときの案内（ARError の code ごと）
-const AR_ERRORS = {
+// カメラを始められなかったときの案内（StageError の code ごと）
+const ERRORS = {
   insecure: 'カメラを使うには https:// で始まるページで開いてください。',
   unsupported: 'このブラウザはカメラに対応していません。iPhone は Safari、Android は Chrome の最新版で開いてください。',
   load: 'ARの部品を読み込めませんでした。通信状況を確認して、もう一度お試しください。',
@@ -12,25 +10,21 @@ const AR_ERRORS = {
 };
 const RETRYABLE = ['load', 'camera'];
 
-// スマホのカメラで問題カードを映し、注目箇所をタップするたびに気づきが1個ずつ浮かぶ
-export default function ThinkingARView({ problem, onBack, onFallback, onSummary }) {
+// カメラ表示：スマホのカメラで問題カードを映し、注目箇所と吹き出しを重ねる
+export default function CameraStage({ problem, view, onSelect, onFallback }) {
   const containerRef = useRef(null);
   const sessionRef = useRef(null);
-  const learning = useLearning(problem);
+  const viewRef = useRef(view);
+  const selectRef = useRef(onSelect);
   const [status, setStatus] = useState('準備中…');
   const [error, setError] = useState(null);
   const [tracking, setTracking] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
-  const { state, nextId, select } = learning;
-  const view = { shown: state.shown, activeId: state.activeId, nextId, focus: state.focus, cueSpan: currentInsight(problem, state)?.cueSpan ?? null };
-  const viewRef = useRef(view);
-  const selectRef = useRef(select);
-
   useEffect(() => {
     const controller = new AbortController();
     const alive = () => !controller.signal.aborted;
-    startAR({
+    startCamera({
       container: containerRef.current,
       problem,
       signal: controller.signal,
@@ -43,8 +37,8 @@ export default function ThinkingARView({ problem, onBack, onFallback, onSummary 
       session.setView(viewRef.current);
     }).catch(e => {
       if (!alive() || e?.code === 'aborted') return;
-      console.warn('AR を開始できませんでした', e);
-      setError(AR_ERRORS[e?.code] ? e.code : 'camera');
+      console.warn('カメラ表示を開始できませんでした', e);
+      setError(ERRORS[e?.code] ? e.code : 'camera');
     });
     return () => {
       controller.abort();
@@ -55,7 +49,7 @@ export default function ThinkingARView({ problem, onBack, onFallback, onSummary 
 
   useEffect(() => {
     viewRef.current = view;
-    selectRef.current = select;
+    selectRef.current = onSelect;
     sessionRef.current?.setView(view);
   });
 
@@ -67,34 +61,25 @@ export default function ThinkingARView({ problem, onBack, onFallback, onSummary 
   const ready = !status && !error;
 
   return (
-    <div className="ar-view">
-      <div className="ar-container" ref={containerRef} />
-      <div className="ar-top">
-        <button className="ar-back" onClick={onBack}>← 戻る</button>
-        {ready && (
-          <span className={`ar-tracking ${tracking ? 'on' : ''}`} role="status">
-            {tracking ? 'カードを認識中' : 'カード全体が映るように向けてください'}
-          </span>
-        )}
-      </div>
+    <div className="camera-stage" ref={containerRef}>
+      {ready && (
+        <span className={`stage-button camera-tracking ${tracking ? 'on' : ''}`} role="status">
+          {tracking ? 'カードを認識中' : 'カード全体が映るように向けてください'}
+        </span>
+      )}
       {!ready && (
-        <div className="ar-status">
+        <div className="stage-status">
           {error ? (
-            <div className="ar-error-box" role="alert">
-              <p>{AR_ERRORS[error]}</p>
+            <div className="stage-error" role="alert">
+              <p>{ERRORS[error]}</p>
               <div className="focus-actions">
                 {RETRYABLE.includes(error) && <button onClick={retry}>もう一度試す</button>}
-                <button className="primary" onClick={onFallback}>画面で見る</button>
+                <button className="primary" onClick={onFallback}>立体で表示</button>
               </div>
             </div>
           ) : (
             <p role="status">{status}</p>
           )}
-        </div>
-      )}
-      {ready && (
-        <div className="ar-bottom">
-          <FocusGuide problem={problem} learning={learning} onSummary={onSummary} />
         </div>
       )}
     </div>

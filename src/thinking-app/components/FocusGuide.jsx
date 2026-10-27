@@ -1,6 +1,6 @@
 import { KINDS, ROLES, promptFor } from '../lib/catalog.js';
 import { focusColor, KIND_COLORS } from '../lib/colors.js';
-import { hasPending, revealedTotal } from '../lib/progress.js';
+import { hasPending, revealedTotal, nextAction } from '../lib/progress.js';
 import { insightTotal } from '../lib/model.js';
 
 // 注目箇所の番号ボタンと、選んだ箇所の気づき（優先順位の高いものから1個ずつ）
@@ -31,32 +31,22 @@ export default function FocusGuide({ problem, learning, onSummary }) {
   const active = problem.focuses[activeIndex];
   const entry = active ? state.focus[active.id] : null;
   const pending = Boolean(active) && hasPending(state, active.id);
-  const remaining = entry ? active.insights.length - entry.opened : 0;
-  const next = problem.focuses.find(f => f.id === nextId);
-  // 開いたが見終わっていない注目箇所（すべて開いた後に、残りへ案内する）
-  const unfinished = problem.focuses.find(f => f.id !== state.activeId && state.focus[f.id].revealed < f.insights.length);
   const anyOpened = state.order.some(id => state.focus[id].opened > 0);
 
-  let action = null;
-  if (pending) {
-    action = <button className="primary" onClick={advance}>答えを見る</button>;
-  } else if (remaining > 0) {
-    action = <button className="primary" onClick={advance}>{promptFirst ? '次の問いかけ' : '次の気づき'}（あと{remaining}個）</button>;
-  } else if (next) {
-    action = (
-      <button className="primary" onClick={() => select(next.id)}>
-        {active ? '次の注目箇所へ' : `${problem.focuses.indexOf(next) + 1}番を見る`}（「{next.quote}」）
-      </button>
-    );
-  } else if (unfinished) {
-    action = (
-      <button className="primary" onClick={() => select(unfinished.id)}>
-        続きを見る（{problem.focuses.indexOf(unfinished) + 1}「{unfinished.quote}」）
-      </button>
-    );
-  } else if (complete) {
-    action = <button className="primary" onClick={onSummary}>振り返りを見る</button>;
-  }
+  // 次の操作のボタン（キー操作の「→」と同じ）
+  const act = nextAction(state);
+  const target = act.id ? problem.focuses.findIndex(f => f.id === act.id) : -1;
+  const targetLabel = target >= 0 ? `${target + 1}「${problem.focuses[target].quote}」` : '';
+  const labels = {
+    answer: '答えを見る',
+    more: `${promptFirst ? '次の問いかけ' : '次の気づき'}（あと${act.remaining}個）`,
+    first: `${target + 1}番を見る（「${problem.focuses[target]?.quote}」）`,
+    next: `次の注目箇所へ（${targetLabel}）`,
+    continue: `続きを見る（${targetLabel}）`,
+  };
+  const action = act.type === 'summary'
+    ? <button className="primary" onClick={onSummary}>振り返りを見る</button>
+    : <button className="primary" onClick={act.type === 'advance' ? advance : () => select(act.id)}>{labels[act.step]}</button>;
 
   return (
     <div className="focus-guide">
@@ -115,7 +105,7 @@ export default function FocusGuide({ problem, learning, onSummary }) {
         {complete && !pending && <p className="focus-hint small">すべての気づきを見ました</p>}
       </div>
 
-      {action && <div className="focus-actions">{action}</div>}
+      <div className="focus-actions">{action}</div>
       <div className="focus-footer">
         {modeToggle}
         <span className="focus-count">見た気づき {revealedTotal(state)}/{insightTotal(problem)}</span>

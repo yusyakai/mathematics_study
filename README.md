@@ -4,13 +4,13 @@
 
 | アプリ | 内容 | 公開URL | コード |
 |---|---|---|---|
-| 着眼点トレーナー | 問題文のどこを見て、何を考えるかを1つずつ表示する（2D表示・スマホのカメラでのAR表示・作成ツール） | https://yusyakai.github.io/mathematics_study/thinking/ | `thinking/index.html`、`src/thinking-app/` |
+| 着眼点トレーナー | 問題文のどこを見て、何を考えるかを1つずつ表示する（PC・スマホの立体表示・文字表示・カメラのAR表示、作成ツール） | https://yusyakai.github.io/mathematics_study/thinking/ | `thinking/index.html`、`src/thinking-app/` |
 | 解法セレクト | 問題のタイプ・使う公式を4択で選ぶ練習 | https://yusyakai.github.io/mathematics_study/ | `index.html`、`src/` 直下 |
 
 ## 技術構成
 
 - React 19 + Vite 8（2つのアプリを1つのビルドで出力するマルチページ構成）
-- AR：MindAR（画像認識）と three.js を CDN から必要なときだけ読み込む
+- 立体表示・AR：three.js と MindAR（画像認識）を CDN から必要なときだけ読み込む
 - テスト：Node.js 標準のテストランナー（`node --test`）
 - 公開：GitHub Pages（main に push すると、チェックの後に自動で公開）
 
@@ -39,9 +39,13 @@ npm run dev        # http://localhost:5173/thinking/ で着眼点トレーナー
 thinking/index.html            入口のHTML
 src/thinking-app/
   App.jsx                      画面の切り替えと一覧
-  components/                  各画面（2D表示・AR表示・カード・振り返り・作成ツール）
+  components/                  各画面（学習画面・カード・振り返り・作成ツール）
+    LearnView.jsx              学習画面（表示の切り替え・キー操作）
+    stages/                    学習画面の表示（立体・文字・カメラ）
   data/                        問題データ（1問 = 1つの JSON ファイル）
   lib/                         データ形式・分類・進み具合・描画などの処理（__tests__ に単体テスト）
+    scene/                     カード・吹き出し・線をまとめたシーン部品と配置の計算
+    hosts/                     表示先（screenHost: PC・スマホの画面、cameraHost: カメラのAR）
 docs/thinking-app/
   spec.md                      仕様と改善の検討結果
   data-spec.md                 入力項目と分類の定義（問題データを作るときに読む）

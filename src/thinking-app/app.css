@@ -271,7 +271,7 @@ button.danger {
   color: var(--danger);
 }
 
-/* ---------- 問題文（2D表示） ---------- */
+/* ---------- 問題文（文字表示） ---------- */
 .thinking-problem {
   margin: 16px 20px;
   padding: 16px;
@@ -581,116 +581,270 @@ button.danger {
   }
 }
 
-/* ---------- AR表示（画面全体） ---------- */
-.ar-view {
+/* ---------- 学習画面（立体・文字・カメラ） ---------- */
+/* スマホ（縦）: 上に表示、下に一覧。PC・横向き: 左に表示、右に一覧 */
+.learn-view {
   position: fixed;
   inset: 0;
-  z-index: 200;
-  background: #000;
-  color: #fff;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
 }
 
-.ar-container {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-}
-
-.ar-top {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+.learn-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px;
-  padding-top: max(12px, env(safe-area-inset-top));
-}
-
-.ar-back {
   padding: 8px 12px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: rgba(15, 23, 42, 0.75);
-  color: #fff;
-  font-size: 14px;
+  padding-top: max(8px, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--border);
 }
 
-.ar-tracking {
-  font-size: 13px;
-  padding: 6px 10px;
+.learn-header h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.display-switch {
+  display: flex;
+  flex: none;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.75);
+  overflow: hidden;
 }
 
-.ar-tracking.on {
-  background: rgba(4, 120, 87, 0.9);
+.display-switch button {
+  padding: 6px 12px;
+  border: none;
+  background: var(--surface);
+  font-size: 13px;
+  cursor: pointer;
 }
 
-.ar-status {
+.display-switch button + button {
+  border-left: 1px solid var(--border);
+}
+
+.display-switch button.active {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+}
+
+.learn-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 42dvh;
+}
+
+.learn-stage {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.learn-panel {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 0 max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.learn-panel .focus-guide {
+  margin: 0 12px;
+}
+
+.key-hint {
+  margin: 8px 16px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+@media (hover: none) {
+  .key-hint {
+    display: none;
+  }
+}
+
+@media (min-width: 900px), (orientation: landscape) and (min-width: 640px) {
+  .learn-body {
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) min(400px, 42vw);
+  }
+  .learn-panel {
+    border-top: none;
+    border-left: 1px solid var(--border);
+  }
+}
+
+/* 立体表示 */
+.scene-stage {
   position: absolute;
   inset: 0;
+  background: radial-gradient(circle at 50% 40%, #f8fafc, #cbd5e1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .scene-stage {
+    background: radial-gradient(circle at 50% 40%, #334155, #0f172a);
+  }
+}
+
+.scene-root,
+.scene-targets {
+  position: absolute;
+  inset: 0;
+}
+
+.scene-root canvas {
+  display: block;
+  touch-action: none;
+}
+
+.scene-targets {
+  pointer-events: none;
+}
+
+.scene-target {
+  position: absolute;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.scene-target[hidden] {
+  display: none;
+}
+
+.scene-target:hover {
+  background: rgba(79, 70, 229, 0.08);
+}
+
+/* 表示の上に重ねるボタン・案内 */
+.stage-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* 視点を戻すボタンは、吹き出し（上側）と重ならないよう右下に置く */
+.scene-reset {
+  top: auto;
+  bottom: 10px;
+}
+
+.stage-status {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px;
+  padding: 24px;
   text-align: center;
   pointer-events: none;
 }
 
-.ar-error-box {
+.stage-error {
   max-width: 360px;
   padding: 16px;
   border-radius: var(--radius);
   background: rgba(15, 23, 42, 0.92);
+  color: #fff;
   line-height: 1.7;
   pointer-events: auto;
 }
 
-.ar-error-box .focus-actions button:not(.primary) {
+.stage-error .focus-actions button:not(.primary) {
   background: rgba(255, 255, 255, 0.12);
   border-color: transparent;
   color: #fff;
 }
 
-.ar-bottom {
+/* 文字表示 */
+.text-stage {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding-bottom: max(12px, env(safe-area-inset-bottom));
-}
-
-.ar-bottom .focus-guide {
-  max-height: 40dvh; /* カードが隠れすぎないように */
+  inset: 0;
   overflow-y: auto;
-  background: rgba(15, 23, 42, 0.88);
-  border-color: transparent;
+}
+
+/* カメラ表示 */
+.camera-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
   color: #fff;
+  isolation: isolate; /* MindAR は映像を z-index: -2 で置くため、この中で重なりを完結させる（背景の黒で隠れないように） */
 }
 
-.ar-bottom .insight {
-  background: rgba(255, 255, 255, 0.08);
+.camera-tracking {
+  right: auto;
+  left: 10px;
+  cursor: default;
 }
 
-.ar-bottom .insight-cue,
-.ar-bottom .focus-hint.small,
-.ar-bottom .focus-count,
-.ar-bottom .focus-reset,
-.ar-bottom .role-chip {
-  color: #cbd5e1;
-  border-color: #cbd5e1;
+.camera-tracking.on {
+  background: rgba(4, 120, 87, 0.9);
 }
 
-.ar-bottom .focus-chip.opened {
-  color: #fff;
-}
-
-.ar-bottom .focus-actions button:not(.primary) {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: transparent;
-  color: #fff;
+/* スマホ（縦）でのカメラ表示は、映像を画面いっぱいにして一覧を下に重ねる */
+@media (max-width: 899.98px) and (orientation: portrait), (max-width: 639.98px) {
+  .display-camera .learn-body {
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .display-camera .learn-panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 42dvh;
+    border-top: none;
+    background: rgba(15, 23, 42, 0.88);
+    color: #fff;
+  }
+  .display-camera .learn-panel .focus-guide {
+    background: transparent;
+    border-color: transparent;
+  }
+  .display-camera .learn-panel .insight {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .display-camera .learn-panel .insight-cue,
+  .display-camera .learn-panel .focus-hint.small,
+  .display-camera .learn-panel .focus-count,
+  .display-camera .learn-panel .focus-reset,
+  .display-camera .learn-panel .role-chip {
+    color: #cbd5e1;
+    border-color: #cbd5e1;
+  }
+  .display-camera .learn-panel .focus-chip.opened {
+    color: #fff;
+  }
+  .display-camera .learn-panel .focus-actions button:not(.primary) {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: transparent;
+    color: #fff;
+  }
 }
 
 /* ---------- 作成ツール ---------- */

@@ -17,8 +17,8 @@ export default function ProblemItem({ problem, completedAt, onOpen, children }) 
         <span className="thinking-item-count">注目箇所 {problem.focuses.length}・気づき {insightTotal(problem)}</span>
       </div>
       <div className="thinking-item-actions">
-        <button onClick={() => onOpen({ mode: '2d', problem })}>画面で見る</button>
-        <button className="primary" onClick={() => onOpen({ mode: 'ar', problem })}>ARで見る</button>
+        <button className="primary" onClick={() => onOpen({ mode: 'learn', problem })}>画面で見る</button>
+        <button onClick={() => onOpen({ mode: 'learn', problem, display: 'camera' })}>ARで見る</button>
         <button onClick={() => onOpen({ mode: 'card', problem })}>カード</button>
       </div>
       {children}
