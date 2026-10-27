@@ -4,6 +4,7 @@ import { LIMITS, locateQuote } from '../lib/schema.js';
 import { focusColor } from '../lib/colors.js';
 import { loadDraft, saveDraft, checkDraft } from '../lib/drafts.js';
 import { emptyDraft, formatJson, occurrenceAt, countOccurrences, nextFocusIdFor } from '../lib/serialize.js';
+import { canPickFolder, loadSaveFolder, pickSaveFolder, saveToFolder } from '../lib/saveFolder.js';
 
 // 「求めよ」などを含む引用は「問い」として追加する（あとで変更できる）
 const QUESTION_PATTERN = /求めよ|示せ|証明せよ|答えよ|調べよ/;
@@ -24,6 +25,7 @@ export default function EditorView({ draftKey, onBack, onOpen }) {
   const [manualQuote, setManualQuote] = useState('');
   const [notice, setNotice] = useState(null); // 注目箇所を追加できなかった理由
   const [exportNotice, setExportNotice] = useState(null);
+  const [saveFolder, setSaveFolder] = useState(null); // JSON を直接保存するフォルダ（Chrome・Edge）
   const problemRef = useRef(null);
 
   useEffect(() => {
@@ -33,6 +35,15 @@ export default function EditorView({ draftKey, onBack, onOpen }) {
     saveDraft(draftKey, draft);
     savedRef.current = text;
   }, [draftKey, draft]);
+
+  useEffect(() => {
+    if (!canPickFolder()) return;
+    let cancelled = false;
+    loadSaveFolder().then(folder => {
+      if (!cancelled && folder) setSaveFolder(folder);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const check = useMemo(() => checkDraft(draft), [draft]);
   const json = useMemo(() => formatJson(check.data), [check]);
@@ -125,13 +136,43 @@ export default function EditorView({ draftKey, onBack, onOpen }) {
     }
   };
 
+  const fileName = `${check.data.id || 'problem'}.json`;
+
   const downloadJson = () => {
     const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${check.data.id || 'problem'}.json`;
+    a.download = fileName;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  // 保存先フォルダを選ぶ（選んだフォルダは次回も使う）
+  const chooseFolder = async () => {
+    try {
+      const folder = await pickSaveFolder();
+      if (folder) setSaveFolder(folder);
+      return folder;
+    } catch (e) {
+      setExportNotice(`フォルダを選べませんでした（${e.message}）。「ダウンロード」で保存してください。`);
+      return null;
+    }
+  };
+
+  // 選んだフォルダに直接保存する（まだ選んでいなければ先に選ぶ）
+  const saveIntoFolder = async () => {
+    const folder = saveFolder ?? await chooseFolder();
+    if (!folder) return;
+    try {
+      const result = await saveToFolder(folder, fileName, json, name => window.confirm(`「${name}」はすでにあります。上書きしますか？`));
+      setExportNotice({
+        saved: `「${folder.name}」フォルダに ${fileName} を保存しました。`,
+        cancelled: '保存をやめました。',
+        denied: 'フォルダへの保存が許可されませんでした。もう一度保存するか、保存先を選び直してください。',
+      }[result]);
+    } catch (e) {
+      setExportNotice(`保存できませんでした（${e.message}）。「ダウンロード」で保存してください。`);
+    }
   };
 
   const selectedText = selection ? draft.problem.slice(selection.start, selection.end).trim() : '';
@@ -279,10 +320,34 @@ export default function EditorView({ draftKey, onBack, onOpen }) {
           <button disabled={!check.problem} onClick={() => onOpen({ mode: 'card', problem: check.problem })}>カード</button>
         </div>
         {!check.problem && <p className="field-help">エラーがなくなると確認できます。</p>}
-        <div className="thinking-item-actions">
-          <button onClick={copyJson}>JSON をコピー</button>
-          <button onClick={downloadJson}>ファイルに保存</button>
-        </div>
+        {canPickFolder() ? (
+          <>
+            <div className="thinking-item-actions">
+              <button className="primary" onClick={saveIntoFolder}>
+                {saveFolder ? `「${saveFolder.name}」フォルダに保存` : '保存先フォルダを選んで保存'}
+              </button>
+            </div>
+            <p className="field-help">
+              {saveFolder ? (
+                <>保存先：{saveFolder.name}（<button className="link-button inline" onClick={chooseFolder}>変更する</button>）</>
+              ) : '一度選んだフォルダは次回も使います。'}
+            </p>
+            <div className="thinking-item-actions">
+              <button onClick={copyJson}>JSON をコピー</button>
+              <button onClick={downloadJson}>ダウンロード</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="thinking-item-actions">
+              <button onClick={copyJson}>JSON をコピー</button>
+              <button onClick={downloadJson}>ファイルに保存</button>
+            </div>
+            <p className="field-help">
+              このブラウザでは、ダウンロードフォルダに保存されます。保存先のフォルダを選んで保存するには、PC の Chrome か Edge で開いてください。
+            </p>
+          </>
+        )}
         {exportNotice && <p className="form-notice" role="status">{exportNotice}</p>}
         <details className="studio-import">
           <summary>JSON を表示</summary>

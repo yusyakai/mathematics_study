@@ -133,6 +133,11 @@ code {
   cursor: pointer;
 }
 
+.link-button.inline {
+  padding: 0;
+  font-size: inherit;
+}
+
 .thinking-intro {
   margin: 12px 20px;
   font-size: 14px;
