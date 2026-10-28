@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { thinkingProblems } from '../lib/loadThinking.js';
 import { loadDrafts, saveDraft, deleteDraft, newDraftKey, checkDraft } from '../lib/drafts.js';
-import { emptyDraft, fromData } from '../lib/serialize.js';
+import { emptyDraft, fromData, extractJson } from '../lib/serialize.js';
+import { buildAiPrompt } from '../lib/aiPrompt.js';
 import ProblemItem from './ProblemItem.jsx';
 
 const DATA_SPEC_URL = 'https://github.com/yusyakai/mathematics_study/blob/main/docs/thinking-app/data-spec.md';
@@ -12,6 +13,9 @@ export default function StudioView({ onBack, onOpen }) {
   const [baseId, setBaseId] = useState('');
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState(null);
+  const [aiProblem, setAiProblem] = useState('');
+  const [promptNotice, setPromptNotice] = useState(null);
+  const [promptShown, setPromptShown] = useState(false);
   const fileRef = useRef(null);
 
   const startEditing = (draft) => {
@@ -22,9 +26,21 @@ export default function StudioView({ onBack, onOpen }) {
 
   const importJson = (text) => {
     try {
-      startEditing(fromData(JSON.parse(text)));
+      startEditing(fromData(JSON.parse(extractJson(text))));
     } catch (e) {
       setImportError(`JSONとして読めません: ${e.message}`);
+    }
+  };
+
+  const prompt = buildAiPrompt(aiProblem.trim() || undefined);
+  const copyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setPromptNotice('指示文をコピーしました。AI チャットに貼り付けて送ってください。');
+      setPromptShown(false);
+    } catch {
+      setPromptNotice('コピーできませんでした。下の指示文を選択してコピーしてください。');
+      setPromptShown(true);
     }
   };
 
@@ -67,8 +83,32 @@ export default function StudioView({ onBack, onOpen }) {
             コピーして作る
           </button>
         </div>
-        <details className="studio-import">
-          <summary>JSON を読み込んで作る（AI が作ったデータの確認にも使えます）</summary>
+      </section>
+
+      <section className="studio-section">
+        <h3>AI に下書きを作ってもらう</h3>
+        <ol className="studio-steps">
+          <li>問題文を入れて「AI用の指示文をコピー」を押す（空のままでもよく、あとで指示文の最後に問題文を貼れます）</li>
+          <li>Claude などの AI チャットに貼り付けて送る</li>
+          <li>AI が出した JSON を、下の「JSON を読み込んで作る」に貼り付けて読み込む（前後の説明文はそのままでかまいません）</li>
+          <li>作成方法「AI生成」と「未確認」は自動で入ります。使った AI のモデル名を入れ、内容を確認してから「内容を確認した」にチェックする</li>
+        </ol>
+        <textarea
+          className="studio-textarea"
+          value={aiProblem}
+          onChange={e => { setAiProblem(e.target.value); setPromptNotice(null); }}
+          placeholder="問題文（任意）"
+          rows={3}
+          aria-label="AI に渡す問題文"
+        />
+        <div className="thinking-item-actions">
+          <button className="primary" onClick={copyPrompt}>AI用の指示文をコピー</button>
+          <button onClick={() => setPromptShown(v => !v)}>{promptShown ? '指示文を閉じる' : '指示文を見る'}</button>
+        </div>
+        {promptNotice && <p className="form-notice" role="status">{promptNotice}</p>}
+        {promptShown && <textarea className="studio-textarea mono" readOnly value={prompt} rows={14} aria-label="AI用の指示文" />}
+        <details className="studio-import" open>
+          <summary>JSON を読み込んで作る（AI が作った JSON はここに貼り付け）</summary>
           <textarea
             value={importText}
             onChange={e => { setImportText(e.target.value); setImportError(null); }}

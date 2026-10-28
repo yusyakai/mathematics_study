@@ -120,3 +120,13 @@ export function nextFocusIdFor(draft) {
   while (used.has(`f${n}`)) n++;
   return `f${n}`;
 }
+
+// 貼り付けられた文章から JSON の部分を取り出す。
+// AI は「```json … ```」で囲んだり、前後に説明を付けたりすることがあるため、それらを取り除く
+export function extractJson(text) {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const body = fenced ? fenced[1] : text;
+  const start = body.indexOf('{');
+  const end = body.lastIndexOf('}');
+  return start !== -1 && end > start ? body.slice(start, end + 1) : body.trim();
+}
