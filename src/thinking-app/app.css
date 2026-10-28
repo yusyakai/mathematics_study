@@ -917,6 +917,28 @@ button.danger {
   font-size: 12px;
 }
 
+.studio-steps {
+  margin: 0 0 10px;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.studio-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 15px;
+}
+
+.studio-textarea.mono {
+  margin-top: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
 .draft-meta {
   display: flex;
   flex-wrap: wrap;
