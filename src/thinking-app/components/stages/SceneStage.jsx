@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { startScreen } from '../../lib/hosts/screenHost.js';
+import Icon from '../Icon.jsx';
 
 const ERRORS = {
   load: '立体表示の部品を読み込めませんでした。通信状況を確認して、もう一度お試しください。',
@@ -56,20 +57,30 @@ export default function SceneStage({ problem, view, onSelect, onFallback }) {
   return (
     <div className="scene-stage" ref={containerRef}>
       {!status && !error && (
-        <button className="stage-button scene-reset" onClick={() => hostRef.current?.resetView()}>視点を戻す</button>
+        <>
+          {!view.shown && (
+            <p className="stage-hint" aria-hidden="true">
+              <span className="hint-mouse">ドラッグで傾ける・ホイールで拡大</span>
+              <span className="hint-touch">指で傾ける・2本指で拡大</span>
+            </p>
+          )}
+          <button className="stage-button scene-reset" onClick={() => hostRef.current?.resetView()}>
+            <Icon name="fit" size={16} />視点を戻す
+          </button>
+        </>
       )}
       {(status || error) && (
         <div className="stage-status">
           {error ? (
             <div className="stage-error" role="alert">
               <p>{ERRORS[error]}</p>
-              <div className="focus-actions">
-                {error === 'load' && <button onClick={retry}>もう一度試す</button>}
-                <button className="primary" onClick={onFallback}>文字で表示</button>
+              <div className="btn-row">
+                {error === 'load' && <button className="btn" onClick={retry}>もう一度試す</button>}
+                <button className="btn primary" onClick={onFallback}>文字で表示</button>
               </div>
             </div>
           ) : (
-            <p role="status">{status}</p>
+            <p className="stage-loading" role="status"><span className="spinner" aria-hidden="true" />{status}</p>
           )}
         </div>
       )}

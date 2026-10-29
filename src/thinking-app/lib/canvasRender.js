@@ -21,7 +21,7 @@ export async function ensureFonts(problem) {
     ...problem.focuses.flatMap(f => [f.quote, ...f.insights.flatMap(s => [s.cue, s.thought, promptFor(s)])]),
     ...Object.values(KINDS).map(k => k.label),
     ...Object.values(ROLES).map(r => r.label),
-    '着眼点トレーナー「」→と書いてあるもう一度タップクリックで答え次の気づきあと個0123456789',
+    '着眼点トレーナー「」→と書いてあるもう一度タップクリックで答え次の気づきあと個考えてみよう（）0123456789',
   ].join('');
   try {
     await Promise.race([
@@ -137,18 +137,28 @@ export function renderCard(problem) {
   };
 }
 
-function drawNumber(ctx, x, y, radius, color, text, ring) {
+// 番号の丸。ring: 外側に白い縁（カードの上で目立たせる）、halo: さらに外側に色の輪（次に見る注目箇所）
+function drawNumber(ctx, x, y, radius, color, text, { ring = false, halo = false } = {}) {
+  if (halo) {
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.25;
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  if (ring) {
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2);
   ctx.fill();
-  if (ring) {
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 4;
-    ctx.stroke();
-  }
   ctx.fillStyle = '#fff';
-  ctx.font = `700 24px ${FONT}`;
+  ctx.font = `700 ${Math.round(radius * 1.1)}px ${FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, x, y + 1);
@@ -157,6 +167,7 @@ function drawNumber(ctx, x, y, radius, color, text, ring) {
 }
 
 // view: { shown, activeId, nextId, openedIds: Set, cueRects: 矩形の配列 }
+// 文字表示（画面の印）と同じ決まり: 破線 = まだ見ていない、実線 = 見た、塗り = いま見ている
 export function renderHighlight(canvas, card, view) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -168,15 +179,17 @@ export function renderHighlight(canvas, card, view) {
     const isOpened = view.openedIds.has(f.id);
     const isNext = f.id === view.nextId;
     f.rects.forEach(r => {
-      ctx.globalAlpha = isActive ? 0.3 : (isNext ? 0.2 : 0.1);
+      ctx.globalAlpha = isActive ? 0.28 : (isNext ? 0.18 : 0.1);
       ctx.fillStyle = color;
-      ctx.fillRect(r.x - 4, r.y, r.w + 8, r.h);
+      ctx.beginPath();
+      ctx.roundRect(r.x - 4, r.y, r.w + 8, r.h, [6, 6, 0, 0]);
+      ctx.fill();
       ctx.globalAlpha = 1;
       if (isOpened || isActive) {
         ctx.fillRect(r.x - 4, r.y + r.h - 6, r.w + 8, 6);
       } else {
         ctx.strokeStyle = color;
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 5;
         ctx.setLineDash([12, 8]);
         ctx.beginPath();
         ctx.moveTo(r.x - 4, r.y + r.h - 3);
@@ -185,18 +198,30 @@ export function renderHighlight(canvas, card, view) {
         ctx.setLineDash([]);
       }
     });
-    const first = f.rects[0];
-    if (first) drawNumber(ctx, first.x - 4, first.y - 4, isNext ? 24 : 20, isOpened && !isActive ? '#64748b' : color, String(i + 1), isNext);
   });
 
-  // いま見ている気づきの手がかりの語句を枠で囲む
-  ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 5;
+  // いま見ている気づきの手がかりの語句（蛍光ペンの色の縁取り）
   for (const r of view.cueRects ?? []) {
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 10;
     ctx.beginPath();
     ctx.roundRect(r.x - 6, r.y - 2, r.w + 12, r.h + 4, 8);
     ctx.stroke();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 4;
+    ctx.stroke();
   }
+
+  // 番号は最後に描き、ハイライトや枠に隠れないようにする
+  card.focuses.forEach((f, i) => {
+    const first = f.rects[0];
+    if (!first) return;
+    const isActive = f.id === view.activeId;
+    const isOpened = view.openedIds.has(f.id);
+    const isNext = f.id === view.nextId;
+    const color = isOpened && !isActive ? '#6e7391' : focusColor(i);
+    drawNumber(ctx, first.x - 4, first.y - 4, isNext || isActive ? 22 : 18, color, String(i + 1), { ring: true, halo: isNext });
+  });
 }
 
 function wrapLines(ctx, text, maxWidth) {
@@ -212,15 +237,32 @@ function wrapLines(ctx, text, maxWidth) {
   return lines;
 }
 
-function drawChip(ctx, x, y, text, color) {
-  ctx.font = `700 20px ${FONT}`;
+// '#rrggbb' どうしを混ぜる（t は a の割合）
+function mix(a, b, t) {
+  const parse = (hex) => [1, 3, 5].map(k => parseInt(hex.slice(k, k + 2), 16));
+  const pa = parse(a);
+  const pb = parse(b);
+  return `rgb(${pa.map((v, k) => Math.round(v * t + pb[k] * (1 - t))).join(', ')})`;
+}
+
+// 札（種類・役割）。outline のときは枠線だけ。戻り値は幅
+function drawTag(ctx, x, y, text, { bg, ink, outline = false }) {
+  ctx.font = `700 21px ${FONT}`;
   const w = ctx.measureText(text).width + 24;
-  ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.roundRect(x, y, w, 32, 16);
-  ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.fillText(text, x + 12, y + 5);
+  ctx.roundRect(x, y, w, 34, 8);
+  if (outline) {
+    ctx.strokeStyle = bg;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = bg;
+    ctx.fill();
+  }
+  ctx.fillStyle = ink;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x + 12, y + 18);
+  ctx.textBaseline = 'top';
   return w;
 }
 
@@ -230,63 +272,126 @@ export async function prepareCard(problem) {
   return renderCard(problem);
 }
 
+// 吹き出しの色（暗い面。画面の立体表示でもカメラの映像の上でも読めるように）
+const BUBBLE = {
+  bg: '#161a2e',
+  row: '#1f2440',
+  text: '#f4f5fb',
+  sub: '#a9aeca',
+  muted: '#868cad',
+  line: '#2f3557',
+  prompt: '#fcd34d',
+  promptBar: '#eab308',
+  promptRow: '#2a2a2e',
+};
+
 // 1つの注目箇所の吹き出し。entry = { opened, revealed }。高さは内容に合わせる
 //   action: 操作の呼び方（スマホ・ARは「タップ」、PCは「クリック」）
+// 画面の一覧の気づきと同じ形にする（左の線 = 注目箇所の色、札 = 気づきの種類の色）
 export function renderBubble(problem, index, entry, { action = 'タップ' } = {}) {
   const focus = problem.focuses[index];
   const color = focusColor(index);
-  const pad = 28;
-  const textW = BUBBLE_W - pad * 2;
+  const pad = 32;
+  const rowPad = 22;
+  const textX = pad + rowPad + 8;
+  const textW = BUBBLE_W - textX - pad - rowPad;
   const measure = document.createElement('canvas').getContext('2d');
 
   const rows = focus.insights.slice(0, entry.opened).map((s, i) => {
     const answered = i < entry.revealed;
-    measure.font = `400 26px ${FONT}`;
-    const subLines = wrapLines(measure, answered ? `「${s.cue}」と書いてある` : promptFor(s), textW);
+    measure.font = `700 21px ${FONT}`;
+    const tagW = measure.measureText(KINDS[s.kind].label).width + 24;
+    measure.font = `400 24px ${FONT}`;
+    const meta = answered ? `「${s.cue}」と書いてある` : '考えてみよう';
+    const metaLines = wrapLines(measure, meta, textW - tagW - 12);
     measure.font = `700 32px ${FONT}`;
-    const mainLines = answered ? wrapLines(measure, `→ ${s.thought}`, textW) : [`（もう一度${action}で答え）`];
-    return { s, answered, subLines, mainLines, h: 40 + subLines.length * 36 + mainLines.length * 44 + 20 };
+    const mainLines = wrapLines(measure, answered ? `→ ${s.thought}` : promptFor(s), textW);
+    const hint = answered ? null : `もう一度${action}で答え`;
+    const h = rowPad + metaLines.length * 36 + 10 + mainLines.length * 46 + (hint ? 38 : 0) + rowPad - 6;
+    return { s, answered, metaLines, mainLines, hint, h };
   });
-  const headerH = 64;
+  // 見出しの引用は、役割の札の右に置き、長いときは折り返す
+  measure.font = `700 21px ${FONT}`;
+  const quoteX = pad + 70 + measure.measureText(ROLES[focus.role].label).width + 24;
+  measure.font = `700 32px ${FONT}`;
+  const quoteLines = wrapLines(measure, `「${focus.quote}」`, BUBBLE_W - quoteX - pad);
+  const headerH = 84 + (quoteLines.length - 1) * 44;
+  const gap = 14;
   const remaining = focus.insights.length - entry.opened;
-  const footerH = remaining > 0 && entry.opened === entry.revealed ? 44 : 0;
-  const height = pad + headerH + rows.reduce((sum, r) => sum + r.h, 0) + footerH + pad;
+  const footerH = remaining > 0 && entry.opened === entry.revealed ? 52 : 0;
+  const height = pad + headerH + rows.reduce((sum, r) => sum + r.h + gap, 0) - (rows.length ? gap : 0) + footerH + pad;
 
   const canvas = document.createElement('canvas');
   canvas.width = BUBBLE_W;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+  ctx.globalAlpha = 0.96;
+  ctx.fillStyle = BUBBLE.bg;
+  ctx.beginPath();
+  ctx.roundRect(3, 3, BUBBLE_W - 6, height - 6, 30);
+  ctx.fill();
+  ctx.globalAlpha = 1;
   ctx.strokeStyle = color;
   ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.roundRect(3, 3, BUBBLE_W - 6, height - 6, 28);
-  ctx.fill();
   ctx.stroke();
 
+  // 見出し: 番号・役割・引用
   ctx.textBaseline = 'top';
-  drawNumber(ctx, pad + 22, pad + 22, 22, color, String(index + 1), false);
-  const roleW = drawChip(ctx, pad + 56, pad + 6, ROLES[focus.role].label, '#475569');
-  ctx.fillStyle = '#f8fafc';
-  ctx.font = `700 30px ${FONT}`;
-  ctx.fillText(`「${focus.quote}」`, pad + 64 + roleW, pad + 4);
+  drawNumber(ctx, pad + 22, pad + 26, 22, color, String(index + 1));
+  drawTag(ctx, pad + 58, pad + 9, ROLES[focus.role].label, { bg: '#5b6185', ink: '#c3c7de', outline: true });
+  ctx.fillStyle = BUBBLE.text;
+  ctx.font = `700 32px ${FONT}`;
+  quoteLines.forEach((l, j) => ctx.fillText(l, quoteX, pad + 8 + j * 44));
+  ctx.fillStyle = BUBBLE.line;
+  ctx.fillRect(pad, pad + headerH - 18, BUBBLE_W - pad * 2, 2);
 
+  // 気づき（問いかけ）の行
   let y = pad + headerH;
   for (const r of rows) {
-    drawChip(ctx, pad, y, KINDS[r.s.kind].label, KIND_COLORS[r.s.kind]);
-    ctx.fillStyle = r.answered ? '#cbd5e1' : '#fde68a';
-    ctx.font = `400 26px ${FONT}`;
-    r.subLines.forEach((l, j) => ctx.fillText(l, pad, y + 40 + j * 36));
-    ctx.fillStyle = r.answered ? '#f8fafc' : '#94a3b8';
+    const rowColor = r.answered ? color : BUBBLE.promptBar;
+    ctx.fillStyle = r.answered ? BUBBLE.row : BUBBLE.promptRow;
+    ctx.beginPath();
+    ctx.roundRect(pad, y, BUBBLE_W - pad * 2, r.h, 18);
+    ctx.fill();
+    ctx.fillStyle = rowColor;
+    ctx.beginPath();
+    ctx.roundRect(pad, y + 14, 7, r.h - 28, [0, 4, 4, 0]);
+    ctx.fill();
+
+    let ty = y + rowPad;
+    const kind = KIND_COLORS[r.s.kind];
+    const tagW = drawTag(ctx, textX, ty, KINDS[r.s.kind].label, { bg: mix(kind, BUBBLE.bg, 0.4), ink: mix(kind, '#ffffff', 0.35) });
+    ctx.fillStyle = r.answered ? BUBBLE.sub : BUBBLE.prompt;
+    ctx.font = `${r.answered ? 400 : 700} 24px ${FONT}`;
+    r.metaLines.forEach((l, j) => ctx.fillText(l, textX + tagW + 12, ty + 4 + j * 36));
+    ty += r.metaLines.length * 36 + 10;
+
     ctx.font = `700 32px ${FONT}`;
-    const ty = y + 40 + r.subLines.length * 36 + 4;
-    r.mainLines.forEach((l, j) => ctx.fillText(l, pad, ty + j * 44));
-    y += r.h;
+    r.mainLines.forEach((l, j) => {
+      const ly = ty + j * 46;
+      ctx.fillStyle = BUBBLE.text;
+      if (r.answered && j === 0 && l.startsWith('→')) {
+        // 先頭の矢印だけ注目箇所の色にする
+        ctx.fillStyle = mix(color, '#ffffff', 0.55);
+        ctx.fillText('→', textX, ly);
+        ctx.fillStyle = BUBBLE.text;
+        ctx.fillText(l.slice(1), textX + ctx.measureText('→').width, ly);
+      } else {
+        ctx.fillText(l, textX, ly);
+      }
+    });
+    ty += r.mainLines.length * 46;
+    if (r.hint) {
+      ctx.fillStyle = BUBBLE.muted;
+      ctx.font = `400 24px ${FONT}`;
+      ctx.fillText(`（${r.hint}）`, textX, ty + 6);
+    }
+    y += r.h + gap;
   }
   if (footerH) {
-    ctx.fillStyle = '#94a3b8';
+    ctx.fillStyle = BUBBLE.muted;
     ctx.font = `400 24px ${FONT}`;
-    ctx.fillText(`もう一度${action}で次の気づき（あと${remaining}個）`, pad, y + 6);
+    ctx.fillText(`もう一度${action}で次の気づき（あと${remaining}個）`, pad + 8, y - gap + 18);
   }
 
   return canvas;
