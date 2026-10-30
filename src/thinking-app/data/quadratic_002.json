@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 4,
+  "id": "quadratic_002",
+  "title": "二次関数 定義域制限",
+  "subject": "数学I",
+  "unit": "二次関数",
+  "difficulty": "B",
+  "problem": "y = x² − 2x + 3 (0 ≤ x ≤ 3) の最大値と最小値を求めよ。",
+  "origin": "自作",
+  "focuses": [
+    {
+      "id": "f1",
+      "quote": "最大値と最小値を求めよ",
+      "role": "question",
+      "priority": 1,
+      "insights": [
+        { "priority": 1, "kind": "interpret", "cue": "最大値と最小値", "thought": "範囲の中で y がいちばん大きい値と小さい値の両方を答える" },
+        { "priority": 2, "kind": "select", "cue": "最大値と最小値", "thought": "グラフをかいて、範囲内でいちばん高い点と低い点を探す" }
+      ]
+    },
+    {
+      "id": "f2",
+      "quote": "y = x² − 2x + 3",
+      "role": "condition",
+      "priority": 2,
+      "insights": [
+        { "priority": 1, "kind": "interpret", "cue": "x²", "thought": "x² の係数が正 → 下に凸の放物線" },
+        { "priority": 2, "kind": "select", "cue": "− 2x", "thought": "1次の項があるので、平方完成して頂点を求める" },
+        { "priority": 3, "kind": "interpret", "cue": "x² − 2x + 3", "thought": "y = (x − 1)² + 2 と変形でき、軸は x = 1" }
+      ]
+    },
+    {
+      "id": "f3",
+      "quote": "(0 ≤ x ≤ 3)",
+      "role": "condition",
+      "priority": 3,
+      "insights": [
+        { "priority": 1, "kind": "identify", "cue": "0 ≤ x ≤ 3", "thought": "定義域が限られた二次関数の最大・最小の問題" },
+        { "priority": 2, "kind": "caution", "cue": "0 ≤ x ≤ 3", "thought": "軸 x = 1 が範囲の中にあるかを必ず確認する" },
+        { "priority": 3, "kind": "select", "cue": "3", "thought": "下に凸なので、軸から遠い端 x = 3 の値を最大値の候補にする" },
+        { "priority": 4, "kind": "caution", "cue": "≤", "thought": "等号つきなので、端の x = 0, 3 も範囲に含まれる" }
+      ]
+    }
+  ],
+  "meta": { "source": "manual", "reviewed": true }
+}
