@@ -39,7 +39,7 @@ npm run dev        # http://localhost:5173/thinking/ で着眼点トレーナー
 thinking/index.html            入口のHTML
 src/thinking-app/
   App.jsx                      画面の切り替えと一覧
-  components/                  各画面（学習画面・カード・振り返り・作成ツール）
+  components/                  各画面（学習画面・カード・振り返り・作成ツール）とアイコン
     LearnView.jsx              学習画面（表示の切り替え・キー操作）
     stages/                    学習画面の表示（立体・文字・カメラ）
   data/                        問題データ（1問 = 1つの JSON ファイル）
@@ -49,12 +49,13 @@ src/thinking-app/
 docs/thinking-app/
   spec.md                      仕様と改善の検討結果
   data-spec.md                 入力項目と分類の定義（問題データを作るときに読む）
+  design.md                    デザインガイド（色・文字・画面ごとの見た目の方針）
 scripts/validate-thinking.mjs  問題データのチェック
 ```
 
 ## 問題データを追加する
 
-アプリの「問題データを作る（作成ツール）」で作って JSON に書き出し、`src/thinking-app/data/` に置きます。
+アプリの「作成ツール」（一覧の右上）で作って JSON に書き出し、`src/thinking-app/data/` に置きます。
 項目の意味と分類の基準は [データ仕様書](docs/thinking-app/data-spec.md) を参照してください。
 
 ## 公開

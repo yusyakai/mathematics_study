@@ -64,6 +64,7 @@ export default function CameraStage({ problem, view, onSelect, onFallback }) {
     <div className="camera-stage" ref={containerRef}>
       {ready && (
         <span className={`stage-button camera-tracking ${tracking ? 'on' : ''}`} role="status">
+          <span className="tracking-dot" aria-hidden="true" />
           {tracking ? 'カードを認識中' : 'カード全体が映るように向けてください'}
         </span>
       )}
@@ -72,13 +73,13 @@ export default function CameraStage({ problem, view, onSelect, onFallback }) {
           {error ? (
             <div className="stage-error" role="alert">
               <p>{ERRORS[error]}</p>
-              <div className="focus-actions">
-                {RETRYABLE.includes(error) && <button onClick={retry}>もう一度試す</button>}
-                <button className="primary" onClick={onFallback}>立体で表示</button>
+              <div className="btn-row">
+                {RETRYABLE.includes(error) && <button className="btn" onClick={retry}>もう一度試す</button>}
+                <button className="btn primary" onClick={onFallback}>立体で表示</button>
               </div>
             </div>
           ) : (
-            <p role="status">{status}</p>
+            <p className="stage-loading" role="status"><span className="spinner" aria-hidden="true" />{status}</p>
           )}
         </div>
       )}

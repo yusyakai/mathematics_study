@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLearning, currentInsight } from '../lib/loadThinking.js';
-import { nextAction } from '../lib/progress.js';
+import { nextAction, revealedTotal } from '../lib/progress.js';
+import { insightTotal } from '../lib/model.js';
 import { shortcutAction } from '../lib/shortcuts.js';
 import { writeStore, STORE_KEYS } from '../lib/storage.js';
 import { DISPLAYS } from '../lib/display.js';
+import { DIFFICULTIES } from '../lib/catalog.js';
 import FocusGuide from './FocusGuide.jsx';
+import Icon from './Icon.jsx';
 import SceneStage from './stages/SceneStage.jsx';
 import TextStage from './stages/TextStage.jsx';
 import CameraStage from './stages/CameraStage.jsx';
+
+const DISPLAY_ICONS = { scene: 'cube', text: 'text', camera: 'camera' };
 
 // 1問を学習する画面。上（PCでは左）に問題の表示、下（PCでは右）に注目箇所と気づきの一覧を置く
 export default function LearnView({ problem, initialDisplay, onBack, onSummary }) {
@@ -21,6 +26,8 @@ export default function LearnView({ problem, initialDisplay, onBack, onSummary }
     focus: state.focus,
     cueSpan: currentInsight(problem, state)?.cueSpan ?? null,
   };
+  const revealed = revealedTotal(state);
+  const total = insightTotal(problem);
 
   // カメラ以外の表示は、次に開いたときにも使う
   const changeDisplay = (next) => {
@@ -53,13 +60,20 @@ export default function LearnView({ problem, initialDisplay, onBack, onSummary }
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const keys = Math.min(9, problem.focuses.length);
+
   return (
     <div className={`learn-view display-${display}`}>
       <header className="learn-header">
-        <button className="back-btn" onClick={onBack} aria-label="戻る">←</button>
-        <h2>{problem.title}</h2>
-        {problem.draft && <span className="thinking-badge warn">下書き</span>}
-        <div className="display-switch" role="group" aria-label="表示のしかた">
+        <button className="icon-btn" onClick={onBack} aria-label="戻る"><Icon name="back" size={20} /></button>
+        <div className="learn-title">
+          <h2>
+            {problem.title}
+            {problem.draft && <span className="tag warn">下書き</span>}
+          </h2>
+          <p>{[problem.subject, problem.unit, DIFFICULTIES[problem.difficulty]?.label].filter(Boolean).join('・')}</p>
+        </div>
+        <div className="segmented display-switch" role="group" aria-label="表示のしかた">
           {DISPLAYS.map(d => (
             <button
               key={d.key}
@@ -68,9 +82,20 @@ export default function LearnView({ problem, initialDisplay, onBack, onSummary }
               title={d.description}
               onClick={() => changeDisplay(d.key)}
             >
-              {d.label}
+              <Icon name={DISPLAY_ICONS[d.key]} size={16} />
+              <span>{d.label}</span>
             </button>
           ))}
+        </div>
+        <div
+          className="learn-progress"
+          role="progressbar"
+          aria-label="見た気づき"
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-valuenow={revealed}
+        >
+          <span style={{ width: `${total ? (revealed / total) * 100 : 0}%` }} />
         </div>
       </header>
 
@@ -85,8 +110,16 @@ export default function LearnView({ problem, initialDisplay, onBack, onSummary }
           )}
         </div>
         <aside className="learn-panel" aria-label="注目箇所と気づき">
-          <FocusGuide problem={problem} learning={learning} onSummary={onSummary} />
-          <p className="key-hint">キー操作：1〜{Math.min(9, problem.focuses.length)} で注目箇所を選ぶ、→ で次へ</p>
+          <FocusGuide
+            problem={problem}
+            learning={learning}
+            onSummary={onSummary}
+            footer={
+              <p className="key-hint">
+                キー操作：<kbd>1</kbd>{keys > 1 && <>〜<kbd>{keys}</kbd></>} で注目箇所を選ぶ、<kbd>→</kbd> で次へ
+              </p>
+            }
+          />
         </aside>
       </div>
     </div>
