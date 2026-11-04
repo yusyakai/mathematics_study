@@ -1,0 +1,34 @@
+# 作業ブランチへの push で、着眼点トレーナーの品質チェックを行う
+# （main への push は deploy-pages.yml が同じチェックをしてから公開する）
+name: CI
+
+on:
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: 思考データの検証
+        run: npm run validate:thinking
+      - name: Lint（着眼点トレーナー）
+        run: npm run lint:thinking
+      - name: 単体テスト
+        run: npm test
+      - name: ビルド
+        run: npm run build
