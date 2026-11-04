@@ -1,26 +1,40 @@
 // 検証済みのデータを、画面で使う形に整える（React・Vite に依存しない純粋な関数）
 //   ・注目箇所と気づきを優先順位順に並べる（以降は配列の順番 = 優先順位 = 表示する番号）
 //   ・引用から問題文中の位置を求める（span: 注目箇所、cueSpan: 手がかりの語句）
+//   ・つながりの端を、並べ替えた後の番号と語句の位置に直す（resolvedLinks。lib/links.js で使う）
+// 元のデータの項目はそのまま残す（作成ツールの「コピーして作る」で、元のデータとして読み直すため）
 import { locateQuote } from './schema.js';
 import { SUBJECTS, DIFFICULTIES } from './catalog.js';
 
 const byPriority = (a, b) => a.priority - b.priority;
 
 export function normalizeProblem(data) {
+  const focuses = [...data.focuses].sort(byPriority).map(f => {
+    const span = locateQuote(data.problem, f.quote, f.occurrence ?? 1);
+    return {
+      ...f,
+      span,
+      insights: [...f.insights].sort(byPriority).map(s => ({
+        ...s,
+        cueSpan: locateQuote(data.problem, s.cue, 1, span[0], span[1]),
+      })),
+    };
+  });
   return {
     ...data,
-    focuses: [...data.focuses].sort(byPriority).map(f => {
-      const span = locateQuote(data.problem, f.quote, f.occurrence ?? 1);
-      return {
-        ...f,
-        span,
-        insights: [...f.insights].sort(byPriority).map(s => ({
-          ...s,
-          cueSpan: locateQuote(data.problem, s.cue, 1, span[0], span[1]),
-        })),
-      };
-    }),
+    focuses,
+    resolvedLinks: (data.links ?? []).map(l => ({ term: resolveLinkEnd(focuses, l.term), source: resolveLinkEnd(focuses, l.source) })),
   };
+}
+
+// つながりの端 { focus, insight?, text? } を { focusIndex, insightIndex, text, span } にする
+//   insightIndex: -1 は注目箇所の引用。span は引用・気づきの文の中での語句の位置（語句がなければ null = 全体）
+function resolveLinkEnd(focuses, end) {
+  const focusIndex = focuses.findIndex(f => f.id === end.focus);
+  const focus = focuses[focusIndex];
+  const insightIndex = end.insight === undefined ? -1 : focus.insights.findIndex(s => s.priority === end.insight);
+  const target = insightIndex === -1 ? focus.quote : focus.insights[insightIndex].thought;
+  return { focusIndex, insightIndex, text: end.text ?? null, span: end.text ? locateQuote(target, end.text) : null };
 }
 
 // 気づきの総数

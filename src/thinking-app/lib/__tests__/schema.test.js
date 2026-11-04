@@ -119,3 +119,40 @@ test('JSON Schema の必須項目は正しいデータにすべて含まれる',
     assert.ok(key in data.focuses[0].insights[0], key);
   }
 });
+
+// つながり（任意）: ①の「場合の数」の中身が、②の気づき「nCr で数える」の「nCr」でわかる
+const link = (term = { focus: 'f1', insight: 1, text: '場合の数' }, source = { focus: 'f2', insight: 2, text: 'nCr' }) => ({ term, source });
+
+test('つながりは任意で、正しいつながりはエラーも警告もない', () => {
+  const data = validProblem();
+  data.links = [link(), link({ focus: 'f1', insight: 1, text: '比' }, { focus: 'f2' })];
+  assert.deepEqual(validateThinking(data), { errors: [], warnings: [] });
+  data.links = [];
+  assert.deepEqual(validateThinking(data), { errors: [], warnings: [] });
+});
+
+test('つながりのエラー', () => {
+  expectError(d => { d.links = {}; }, /links（つながり）は配列/);
+  expectError(d => { d.links = [{ term: { focus: 'f1' } }]; }, /つながり1: わかる側（source）がありません/);
+  expectError(d => { d.links = [link({ focus: 'f9' })]; }, /focus "f9" という注目箇所がありません/);
+  expectError(d => { d.links = [link({ focus: 'f1', insight: 3 })]; }, /priority 3 の気づきがありません/);
+  expectError(d => { d.links = [link({ focus: 'f1', insight: 1, text: '確率' })]; }, /text「確率」は気づき「場合の数の比で求める」の一部/);
+  expectError(d => { d.links = [link(undefined, { focus: 'f2', text: 'nCr' })]; }, /text「nCr」は引用「2個取り出す」の一部/);
+  expectError(d => { d.links = [link(undefined, { focus: 'f2', insight: 1, text: ' ' })]; }, /text が空です/);
+  expectError(d => { d.links = [link(undefined, { focus: 'f1', insight: 1, text: '比' })]; }, /同じ注目箇所の中どうしはつなげません/);
+  expectError(d => { d.links = [link(), link()]; }, /つながり2: 同じつながりがほかにもあります/);
+  // 同じ文の中で語句が一部だけ重なる（「場合の数」と「数の比」）
+  expectError(d => { d.links = [link(), link({ focus: 'f1', insight: 1, text: '数の比' }, { focus: 'f2' })]; }, /語句「数の比」が、つながり1の語句「場合の数」と重なっています/);
+});
+
+test('同じ語句を複数のつながりで使うのはよい', () => {
+  const data = validProblem();
+  data.links = [link(), link(undefined, { focus: 'f2', insight: 1, text: '順番' })];
+  assert.deepEqual(validateThinking(data).errors, []);
+});
+
+test('つながりが多すぎると警告', () => {
+  expectWarning(d => {
+    d.links = Array.from({ length: LIMITS.links + 1 }, (_, i) => link({ focus: 'f1', insight: 1, text: '場合の数' }, { focus: 'f2', insight: 1, text: '順番は関係ない'.slice(0, i % 7 + 1) }));
+  }, /つながりが \d+ 本あります/);
+});

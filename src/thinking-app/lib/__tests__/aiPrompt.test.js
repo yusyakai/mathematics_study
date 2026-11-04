@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { buildAiPrompt } from '../aiPrompt.js';
 import { extractJson } from '../serialize.js';
@@ -33,4 +34,13 @@ test('AI の出力から JSON の部分を取り出す', () => {
   assert.equal(extractJson(`作りました。\n\`\`\`json\n${json}\n\`\`\`\nご確認ください。`), json);
   assert.equal(extractJson(`以下です：${json} 以上です。`), json);
   assert.equal(extractJson('  JSON なし  '), 'JSON なし');
+});
+
+test('つながりは任意の項目として指示文に入り、例の形式は検証を通る', () => {
+  const prompt = buildAiPrompt();
+  assert.ok(prompt.includes('# つながり（links、任意）'));
+  const example = JSON.parse(prompt.match(/例：(\{ "term".*\})/)[1]);
+  const data = JSON.parse(readFileSync(new URL('../../data/probability_001.json', import.meta.url), 'utf8'));
+  data.links = [example];
+  assert.deepEqual(validateThinking(data).errors, [], '例のつながりは probability_001 に当てはまる');
 });

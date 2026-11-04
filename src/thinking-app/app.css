@@ -1765,42 +1765,6 @@ kbd {
   color: var(--text);
 }
 
-/* 見る順番に並べた注目箇所。番号の下から縦線でつなぐ */
-.timeline {
-  display: flex;
-  flex-direction: column;
-  margin: 8px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.timeline-item {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-bottom: 24px;
-}
-
-.timeline-item::before {
-  content: "";
-  position: absolute;
-  top: 32px;
-  bottom: 8px;
-  left: 11px;
-  width: 2px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--focus) 35%, transparent);
-}
-
-.timeline-item .insight-list {
-  padding-left: 34px;
-}
-
-.timeline-item .insight {
-  animation: none;
-}
-
 /* 画面の下に固定する操作 */
 .action-bar {
   position: sticky;
@@ -1822,6 +1786,199 @@ kbd {
 
 .action-bar .btn {
   flex: 1;
+}
+
+/* ---------- 板書 ---------- */
+/* 開いた注目箇所の気づきを番号の順に書き並べる。番号の下から縦線でつなぎ、
+   注目箇所どうしのつながりは右の余白（--board-gutter）に引いた線で結ぶ */
+.board {
+  position: relative;
+  padding-right: var(--board-gutter, 0px);
+}
+
+.board-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.board-title .icon {
+  color: var(--brand-ink);
+}
+
+.board-sections {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-section {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 22px;
+}
+
+.board-section:last-child {
+  padding-bottom: 4px;
+}
+
+.board-section::before {
+  content: "";
+  position: absolute;
+  top: 32px;
+  bottom: 8px;
+  left: 11px;
+  width: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--focus) 35%, transparent);
+}
+
+.board-section .insight-list {
+  padding-left: 34px;
+}
+
+/* いま見ている注目箇所は番号に輪を付ける */
+.board-section.active > .focus-head .focus-num {
+  box-shadow: 0 0 0 3px var(--panel-bg, var(--surface)), 0 0 0 5px var(--focus);
+}
+
+/* つながりの語句。破線 = 中身はまだ（ほかの注目箇所でわかる）、実線 = 中身がわかった */
+.link-phrase.pending {
+  border-bottom: 2px dashed var(--text-3);
+}
+
+.link-phrase.term.complete {
+  border-bottom: 2.5px solid var(--link);
+  border-radius: 3px 3px 0 0;
+  background: color-mix(in srgb, var(--link) var(--mark-weak), transparent);
+}
+
+.link-phrase.source.complete {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--link) var(--mark-mid), transparent);
+  box-shadow: inset 0 -2px 0 var(--link);
+}
+
+.link-phrase.flash {
+  animation: link-flash 1.4s ease-out;
+}
+
+@keyframes link-flash {
+  0%,
+  50% {
+    background: color-mix(in srgb, var(--link) 45%, transparent);
+  }
+}
+
+/* 書き添え（語句の側: わかったところと中身、わかる側: 行き先）。押すと反対の端へ移動する */
+.link-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin: 0 2px 0 4px;
+  padding: 0 8px 0 3px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--link) var(--kind-bg), var(--surface));
+  color: color-mix(in srgb, var(--link) var(--kind-ink), #fff);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 22px;
+  vertical-align: 2px;
+  white-space: nowrap;
+  animation: pop-in 0.4s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.link-note .focus-num {
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+}
+
+.link-note.source {
+  padding-left: 7px;
+}
+
+.link-note.flash {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--link) 40%, transparent);
+}
+
+.link-note.pending {
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: var(--surface-3);
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 18px;
+  cursor: help;
+  animation: none;
+}
+
+/* つながりの線（右の余白で縦に結ぶ。点 = わかる側、矢じり = 語句の側） */
+.board-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.board-line-path {
+  fill: none;
+  stroke: var(--link);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.board-line-head,
+.board-line circle {
+  fill: var(--link);
+}
+
+.board-line.flash .board-line-path {
+  stroke-width: 3.5;
+}
+
+/* 新しく見えたつながりは、線を描くように出す（動きを減らす設定では最初から全体を出す） */
+.board-line.new .board-line-path {
+  animation: line-draw 0.8s ease-out 0.15s both;
+}
+
+.board-line.new .board-line-head,
+.board-line.new circle {
+  animation: fade-in 0.3s ease-out 0.9s both;
+}
+
+@keyframes line-draw {
+  from {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.summary-view .board .insight {
+  animation: none;
 }
 
 /* ---------- 問題カード ---------- */
@@ -1877,7 +2034,8 @@ kbd {
 .field-inline select,
 .editor-row input,
 .editor-row select,
-.editor-insight textarea {
+.editor-insight textarea,
+.link-end select {
   width: 100%;
   min-height: 44px;
   padding: 9px 12px;
@@ -1894,7 +2052,8 @@ kbd {
 .field select,
 .field-row select,
 .field-inline select,
-.editor-row select {
+.editor-row select,
+.link-end select {
   padding-right: 34px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23858aa6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-position: right 10px center;
@@ -1908,7 +2067,8 @@ kbd {
 .field-row select:focus,
 .field-inline select:focus,
 .editor-row :is(input, select):focus,
-.editor-insight textarea:focus {
+.editor-insight textarea:focus,
+.link-end select:focus {
   border-color: var(--brand);
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent);
@@ -2156,6 +2316,111 @@ textarea {
 .char-count.over {
   font-weight: 700;
   color: var(--error);
+}
+
+/* 詳細設定: 注目箇所どうしのつながり（任意） */
+.links-panel summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.links-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.links-panel summary::after {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin: 0 4px 4px auto;
+  border-right: 2px solid var(--text-3);
+  border-bottom: 2px solid var(--text-3);
+  transform: rotate(45deg);
+  transition: transform 0.2s;
+}
+
+.links-panel details[open] > summary::after {
+  margin-bottom: -4px;
+  transform: rotate(-135deg);
+}
+
+.links-panel details > :not(summary) {
+  margin-top: 12px;
+}
+
+.link-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.link-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.link-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.link-row-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.link-row-arrow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 4px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.link-end {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.link-end-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.link-end-preview {
+  padding: 8px 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.link-end-preview.error {
+  border-color: var(--error);
+}
+
+.link-end-preview .field-error {
+  display: block;
+}
+
+.link-end-preview mark {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--cue);
+  color: #1b1f3b;
 }
 
 /* ---------- 動きを減らす設定 ---------- */

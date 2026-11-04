@@ -30,5 +30,8 @@
       ]
     }
   ],
+  "links": [
+    { "term": { "focus": "f1", "insight": 3, "text": "和と積" }, "source": { "focus": "f2" } }
+  ],
   "meta": { "source": "manual", "reviewed": true }
 }

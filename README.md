@@ -4,7 +4,7 @@
 
 | アプリ | 内容 | 公開URL | コード |
 |---|---|---|---|
-| 着眼点トレーナー | 問題文のどこを見て、何を考えるかを1つずつ表示する（PC・スマホの立体表示・文字表示・カメラのAR表示、作成ツール） | https://yusyakai.github.io/mathematics_study/thinking/ | `thinking/index.html`、`src/thinking-app/` |
+| 着眼点トレーナー | 問題文のどこを見て、何を考えるかを1つずつ表示し、板書に書き並べて注目箇所どうしのつながりを線で示す（PC・スマホの立体表示・文字表示・カメラのAR表示、作成ツール） | https://yusyakai.github.io/mathematics_study/thinking/ | `thinking/index.html`、`src/thinking-app/` |
 | 解法セレクト | 問題のタイプ・使う公式を4択で選ぶ練習 | https://yusyakai.github.io/mathematics_study/ | `index.html`、`src/` 直下 |
 
 ## 技術構成

@@ -5,6 +5,7 @@ import { focusColor, KIND_COLORS } from '../lib/colors.js';
 import { loadDraft, saveDraft, checkDraft } from '../lib/drafts.js';
 import { emptyDraft, formatJson, occurrenceAt, countOccurrences, nextFocusIdFor } from '../lib/serialize.js';
 import { canPickFolder, loadSaveFolder, pickSaveFolder, saveToFolder } from '../lib/saveFolder.js';
+import { swapInsightRefs, removeInsightRefs, removeFocusRefs, countRefs, phraseCandidates } from '../lib/links.js';
 import Icon from './Icon.jsx';
 
 // 「求めよ」などを含む引用は「問い」として追加する（あとで変更できる）
@@ -123,10 +124,37 @@ export default function EditorView({ draftKey, onBack, onOpen }) {
     if (!findOverlap(start, start + quote.length)) setManualQuote('');
   };
 
+  const updateLinks = (fn) => setDraft(d => ({ ...d, links: fn(d.links ?? []) }));
+
+  // 注目箇所・気づきを並べ替え・削除するときは、つながりが同じ気づきを指し続けるように番号を合わせる
   const removeFocus = (i) => {
     const f = draft.focuses[i];
-    if (f.insights.some(s => s.thought.trim()) && !window.confirm(`注目箇所「${f.quote}」と、その気づきを削除しますか？`)) return;
-    updateFocuses(fs => fs.filter((_, k) => k !== i));
+    const refs = countRefs(draft.links ?? [], f.id);
+    const note = refs ? `（つながり ${refs} 本も削除されます）` : '';
+    if ((f.insights.some(s => s.thought.trim()) || refs) && !window.confirm(`注目箇所「${f.quote}」と、その気づきを削除しますか？${note}`)) return;
+    setDraft(d => ({ ...d, focuses: d.focuses.filter((_, k) => k !== i), links: removeFocusRefs(d.links ?? [], f.id) }));
+  };
+
+  const moveInsight = (i, j, dir) => setDraft(d => {
+    const f = d.focuses[i];
+    const k = j + dir;
+    if (k < 0 || k >= f.insights.length) return d;
+    return {
+      ...d,
+      focuses: d.focuses.map((x, n) => (n === i ? { ...x, insights: moveItem(x.insights, j, dir) } : x)),
+      links: swapInsightRefs(d.links ?? [], f.id, j + 1, k + 1),
+    };
+  });
+
+  const removeInsight = (i, j) => {
+    const f = draft.focuses[i];
+    const refs = countRefs(draft.links ?? [], f.id, j + 1);
+    if (refs && !window.confirm(`この気づきには、つながりが ${refs} 本あります。つながりも一緒に削除しますか？`)) return;
+    setDraft(d => ({
+      ...d,
+      focuses: d.focuses.map((x, n) => (n === i ? { ...x, insights: x.insights.filter((_, k) => k !== j) } : x)),
+      links: removeInsightRefs(d.links ?? [], f.id, j + 1),
+    }));
   };
 
   const copyJson = async () => {
@@ -285,10 +313,14 @@ export default function EditorView({ draftKey, onBack, onOpen }) {
                 onChange={fn => updateFocus(i, fn)}
                 onMove={dir => updateFocuses(fs => moveItem(fs, i, dir))}
                 onRemove={() => removeFocus(i)}
+                onMoveInsight={(j, dir) => moveInsight(i, j, dir)}
+                onRemoveInsight={j => removeInsight(i, j)}
               />
             ))}
           </ol>
         </section>
+
+        <LinksEditor draft={draft} onChange={links => updateLinks(() => links)} />
 
         <section className="panel">
           <h3 className="panel-title"><span className="step-num">3</span>管理情報</h3>
@@ -403,7 +435,7 @@ function ProblemWithFocuses({ problem, focuses }) {
 // 手がかりの語句の候補（引用全体と、空白・読点などで区切った部分）
 const cueSuggestions = (quote) => [...new Set([quote, ...quote.split(/[\s、，,。()（）]+/)].filter(Boolean))];
 
-function FocusEditor({ focus, index, total, problem, onChange, onMove, onRemove }) {
+function FocusEditor({ focus, index, total, problem, onChange, onMove, onRemove, onMoveInsight, onRemoveInsight }) {
   const occurrences = countOccurrences(problem, focus.quote);
   const updateInsights = (fn) => onChange(f => ({ ...f, insights: fn(f.insights) }));
   const updateInsight = (j, patch) => updateInsights(list => list.map((s, k) => (k === j ? { ...s, ...patch } : s)));
@@ -462,9 +494,9 @@ function FocusEditor({ focus, index, total, problem, onChange, onMove, onRemove 
                   aria-label="手がかりの語句（注目箇所の一部）"
                 />
                 <span className="row-buttons">
-                  <button onClick={() => updateInsights(list => moveItem(list, j, -1))} disabled={j === 0} aria-label="気づきを上へ"><Icon name="chevronUp" size={16} /></button>
-                  <button onClick={() => updateInsights(list => moveItem(list, j, 1))} disabled={j === focus.insights.length - 1} aria-label="気づきを下へ"><Icon name="chevronDown" size={16} /></button>
-                  <button className="danger" onClick={() => updateInsights(list => list.filter((_, k) => k !== j))} aria-label="気づきを削除"><Icon name="close" size={16} /></button>
+                  <button onClick={() => onMoveInsight(j, -1)} disabled={j === 0} aria-label="気づきを上へ"><Icon name="chevronUp" size={16} /></button>
+                  <button onClick={() => onMoveInsight(j, 1)} disabled={j === focus.insights.length - 1} aria-label="気づきを下へ"><Icon name="chevronDown" size={16} /></button>
+                  <button className="danger" onClick={() => onRemoveInsight(j)} aria-label="気づきを削除"><Icon name="close" size={16} /></button>
                 </span>
               </div>
               <p className="field-help">{KINDS[s.kind]?.description}</p>
@@ -488,5 +520,133 @@ function FocusEditor({ focus, index, total, problem, onChange, onMove, onRemove 
         <Icon name="plus" size={16} />気づきを追加
       </button>
     </li>
+  );
+}
+
+// ---------- 詳細設定: 注目箇所どうしのつながり（任意） ----------
+
+const CIRCLED = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫';
+const shorten = (text, max = 22) => ([...text].length > max ? `${[...text].slice(0, max).join('')}…` : text);
+
+// つながりの端として選べるもの（注目箇所の引用と、各気づき）。insight は注目箇所の中で何番目か（null は引用）
+function linkEndOptions(draft) {
+  return draft.focuses.flatMap((f, i) => {
+    const n = CIRCLED[i] ?? `${i + 1}.`;
+    return [
+      { value: `${f.id}:q`, focus: f.id, insight: null, target: f.quote, label: `${n}「${shorten(f.quote)}」（引用）` },
+      ...f.insights.map((s, j) => ({
+        value: `${f.id}:${j + 1}`,
+        focus: f.id,
+        insight: j + 1,
+        target: s.thought,
+        label: `${n}-${j + 1} ${KINDS[s.kind]?.label ?? ''}：${shorten(s.thought) || '（未入力）'}`,
+      })),
+    ];
+  });
+}
+
+// 語句の側（中身があとでわかる語句）と、わかる側（その中身がわかるところ）を選んでつなぐ。書かなくても作れる
+function LinksEditor({ draft, onChange }) {
+  const links = draft.links ?? [];
+  const [open, setOpen] = useState(links.length > 0);
+  const options = linkEndOptions(draft);
+  const canAdd = draft.focuses.length >= 2;
+
+  const add = () => {
+    const [a, b] = draft.focuses;
+    const end = (f) => ({ focus: f.id, insight: f.insights.length ? 1 : null, text: '' });
+    onChange([...links, { term: end(a), source: end(b) }]);
+    setOpen(true);
+  };
+  const update = (k, side, patch) => onChange(links.map((l, n) => (n === k ? { ...l, [side]: { ...l[side], ...patch } } : l)));
+
+  return (
+    <section className="panel links-panel">
+      <details open={open} onToggle={e => setOpen(e.currentTarget.open)}>
+        <summary className="panel-title">
+          <Icon name="link" size={18} />詳細設定：注目箇所どうしのつながり（任意）
+          {links.length > 0 && <span className="tag">{links.length} 本</span>}
+        </summary>
+        <p className="field-help">
+          ある気づきの中の語句（例：「あてはまる場合の数」）の中身が、別の注目箇所の気づき（例：「₃C₂」）でわかるときに、2つをつなぎます。
+          学習画面の板書で線で結ばれ、語句に中身が書き添えられます。書かなくても問題データは作れます。
+        </p>
+        {links.length > 0 && (
+          <ol className="link-rows">
+            {links.map((link, k) => (
+              <li key={k} className="link-row">
+                <div className="link-row-head">
+                  <span className="link-row-title">つながり {k + 1}</span>
+                  <button className="btn ghost sm danger" onClick={() => onChange(links.filter((_, n) => n !== k))}>削除</button>
+                </div>
+                <LinkEndField
+                  label="語句の側"
+                  help="中身があとでわかる語句"
+                  end={link.term}
+                  options={options}
+                  listId={`link-${k}-term`}
+                  onChange={patch => update(k, 'term', patch)}
+                />
+                <p className="link-row-arrow"><Icon name="chevronUp" size={16} />この中身が下でわかる</p>
+                <LinkEndField
+                  label="わかる側"
+                  help="その中身がわかるところ"
+                  end={link.source}
+                  options={options}
+                  listId={`link-${k}-source`}
+                  onChange={patch => update(k, 'source', patch)}
+                />
+              </li>
+            ))}
+          </ol>
+        )}
+        <button className="btn block" disabled={!canAdd} onClick={add}><Icon name="plus" size={16} />つながりを追加</button>
+        {!canAdd && <p className="field-help">注目箇所が2つ以上あると追加できます。</p>}
+      </details>
+    </section>
+  );
+}
+
+// つながりの端1つ分。注目箇所・気づきを選び、その文の中の語句を入れる（空なら全体）。選んだ文の中で語句を強調して見せる
+function LinkEndField({ label, help, end, options, listId, onChange }) {
+  const value = `${end.focus}:${end.insight ?? 'q'}`;
+  const option = options.find(o => o.value === value);
+  const target = option?.target ?? '';
+  const text = (end.text ?? '').trim();
+  const span = text && target ? locateQuote(target, text) : null;
+  const notFound = Boolean(text) && !span;
+
+  return (
+    <div className="link-end">
+      <span className="link-end-label">{label}<span className="field-help">（{help}）</span></span>
+      <select
+        value={value}
+        onChange={e => {
+          const next = options.find(o => o.value === e.target.value);
+          if (next) onChange({ focus: next.focus, insight: next.insight, text: '' });
+        }}
+        aria-label={`${label}の注目箇所・気づき`}
+      >
+        {!option && <option value={value}>（指している注目箇所・気づきがありません）</option>}
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <input
+        className="input"
+        value={end.text ?? ''}
+        list={listId}
+        onChange={e => onChange({ text: e.target.value })}
+        placeholder="語句（空なら全体）"
+        aria-label={`${label}の語句`}
+      />
+      <datalist id={listId}>
+        {phraseCandidates(target).map(c => <option key={c} value={c} />)}
+      </datalist>
+      {target && (
+        <p className={`link-end-preview ${notFound ? 'error' : ''}`}>
+          {notFound && <span className="field-error">「{text}」が見つかりません。次の文の一部と完全に一致させてください：</span>}
+          {span ? <>{target.slice(0, span[0])}<mark>{target.slice(span[0], span[1])}</mark>{target.slice(span[1])}</> : target}
+        </p>
+      )}
+    </div>
   );
 }

@@ -1,13 +1,15 @@
 import { KINDS } from '../lib/catalog.js';
 import { focusColor, KIND_COLORS } from '../lib/colors.js';
 import { insightTotal, problemSegments } from '../lib/model.js';
-import { FocusHead, InsightCard } from './InsightCard.jsx';
+import Board from './Board.jsx';
 import Icon from './Icon.jsx';
 
 // 振り返り: すべての注目箇所と気づきを、見る順番どおりに一覧にする
 //   next: 次に勧める問題（なければ null）
 export default function SummaryView({ problem, next, onBack, onRetry, onNext }) {
   const total = insightTotal(problem);
+  // 振り返りの板書は、すべての気づきとつながりを出す
+  const allShown = Object.fromEntries(problem.focuses.map(f => [f.id, { opened: f.insights.length, revealed: f.insights.length }]));
   const kindCounts = Object.keys(KINDS)
     .map(kind => ({ kind, count: problem.focuses.reduce((n, f) => n + f.insights.filter(s => s.kind === kind).length, 0) }))
     .filter(k => k.count > 0);
@@ -55,16 +57,9 @@ export default function SummaryView({ problem, next, onBack, onRetry, onNext }) 
           </ul>
         </section>
 
-        <ol className="timeline">
-          {problem.focuses.map((f, i) => (
-            <li key={f.id} className="timeline-item summary-focus" style={{ '--focus': focusColor(i) }}>
-              <FocusHead focus={f} index={i} />
-              <ul className="insight-list">
-                {f.insights.map(s => <InsightCard key={s.priority} insight={s} />)}
-              </ul>
-            </li>
-          ))}
-        </ol>
+        <section className="panel">
+          <Board problem={problem} progress={allShown} animate={false} />
+        </section>
       </main>
 
       <footer className="action-bar">

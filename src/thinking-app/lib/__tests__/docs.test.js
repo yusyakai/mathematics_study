@@ -20,4 +20,5 @@ test('仕様書に役割・種類・難易度・形式の版が載っている',
   for (const key of [...Object.keys(ROLES), ...Object.keys(KINDS)]) assert.ok(doc.includes(`\`${key}\``), key);
   for (const [key, d] of Object.entries(DIFFICULTIES)) assert.ok(doc.includes(`| ${key} | ${d.label} | ${d.description} |`), key);
   assert.ok(doc.includes(`schemaVersion: ${SCHEMA_VERSION}`));
+  for (const key of ['links', 'term', 'source']) assert.ok(doc.includes(`\`${key}\``), key);
 });
