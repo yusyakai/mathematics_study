@@ -1,8 +1,9 @@
 // 思考プロセスデータの形式定義と検証
 //
-// 1問のデータは「問題の基本情報」「注目箇所 (focuses)」「気づき (insights)」「管理情報 (meta)」からなる。
+// 1問のデータは「問題の基本情報」「注目箇所 (focuses)」「気づき (insights)」「つながり (links、任意)」「管理情報 (meta)」からなる。
 //   注目箇所 … 問題文のどこを見るか。役割 (role) と優先順位 (priority) を持つ
 //   気づき   … その箇所に書いてあること (cue) から何を考えるか (thought)。種類 (kind) と優先順位を持つ
+//   つながり … ある気づきの中の語句 (term) の中身が、別の注目箇所 (source) でわかるという関係。板書で線で結ぶ
 // 各項目の意味・分類の判断基準・書き方は docs/thinking-app/data-spec.md にまとめている。
 //
 // 手作業で書いたデータも、AIが生成したデータも、同じ validateThinking() を通してから使う。
@@ -11,7 +12,9 @@
 // 問題文の範囲は文字位置ではなく「引用文字列」で指定する。文字位置は読み込み時に自動で求める。
 //
 // THINKING_JSON_SCHEMA は AI に構造化出力させるときにそのまま渡せる JSON Schema。
-// 形式を変えるときは、この JSON Schema と validateThinking() の両方を更新し、SCHEMA_VERSION を上げること。
+// 形式を変えるときは、この JSON Schema と validateThinking() の両方を更新する。
+// 既存のデータが使えなくなる変更（必須項目の追加・意味の変更）のときは SCHEMA_VERSION を上げて既存データを移行する。
+// 任意の項目を足すだけなら版は変えない（links はこの扱いで追加した）。
 import { SUBJECTS, DIFFICULTIES, ROLES, KINDS, SOURCES } from './catalog.js';
 
 export const SCHEMA_VERSION = 4;
@@ -21,10 +24,24 @@ export const LIMITS = {
   thoughtLength: 60, // 1つの気づきの文字数
   insightsPerFocus: 5, // 1つの注目箇所の気づきの数
   focuses: 8, // 1問の注目箇所の数
+  links: 8, // 1問のつながりの数
 };
 
 const ID_PATTERN = /^[a-z0-9_]+$/;
 const FOCUS_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+// つながりの端（term・source）。insight を省くと注目箇所の引用、text を省くと全体を指す
+const LINK_END_SCHEMA = (description) => ({
+  type: 'object',
+  additionalProperties: false,
+  required: ['focus'],
+  description,
+  properties: {
+    focus: { type: 'string', description: '注目箇所の id' },
+    insight: { type: 'integer', minimum: 1, description: 'その注目箇所の気づきの priority。省略すると注目箇所の引用（quote）を指す' },
+    text: { type: 'string', description: '気づきの thought（insight を省略したときは quote）の一部と完全一致させる語句。省略すると全体を指す' },
+  },
+});
 
 export const THINKING_JSON_SCHEMA = {
   type: 'object',
@@ -75,6 +92,19 @@ export const THINKING_JSON_SCHEMA = {
               },
             },
           },
+        },
+      },
+    },
+    links: {
+      type: 'array',
+      description: '（任意）注目箇所どうしのつながり。ある気づきの中の語句の中身が、別の注目箇所でわかるときだけ書く',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['term', 'source'],
+        properties: {
+          term: LINK_END_SCHEMA('中身があとでわかる語句（例: 「あてはまる場合の数」）'),
+          source: LINK_END_SCHEMA('その中身がわかるところ（例: 別の注目箇所の気づきの「₃C₂」）'),
         },
       },
     },
@@ -226,5 +256,79 @@ export function validateThinking(data) {
   if (!hasQuestion) warnings.push('「問い」（role: question）の注目箇所がありません。何を求めるかが書かれた部分を入れてください');
   if (!hasSelect) warnings.push('「解法の選択」（kind: select）の気づきがありません');
 
+  if (data.links !== undefined) validateLinks(data, errors, warnings);
+
   return { errors, warnings };
+}
+
+const LINK_SIDES = { term: '語句の側（term）', source: 'わかる側（source）' };
+
+// つながり（任意）の検証。端が指す注目箇所・気づき・語句があるか、同じ文の中で語句が重ならないかを確かめる
+function validateLinks(data, errors, warnings) {
+  if (!Array.isArray(data.links)) {
+    errors.push('links（つながり）は配列にしてください');
+    return;
+  }
+  if (data.links.length > LIMITS.links) {
+    warnings.push(`つながりが ${data.links.length} 本あります。${LIMITS.links} 本以内に絞ると板書が見やすくなります`);
+  }
+  const seen = new Set();
+  const marks = []; // { where: 文の場所, span, text, link }
+
+  data.links.forEach((link, i) => {
+    const w = `つながり${i + 1}`;
+    if (!link || typeof link !== 'object') return errors.push(`${w}: オブジェクトではありません`);
+    const ends = {};
+    for (const [side, label] of Object.entries(LINK_SIDES)) {
+      const e = link[side];
+      if (!e || typeof e !== 'object') {
+        errors.push(`${w}: ${label}がありません`);
+        continue;
+      }
+      const focus = data.focuses.find(f => f && f.id === e.focus);
+      if (!focus) {
+        errors.push(`${w}: ${label}の focus "${e.focus ?? ''}" という注目箇所がありません`);
+        continue;
+      }
+      let target = focus.quote;
+      let where = `${e.focus}:quote`;
+      if (e.insight !== undefined) {
+        const insight = isPriority(e.insight) && Array.isArray(focus.insights) ? focus.insights.find(s => s && s.priority === e.insight) : null;
+        if (!insight) {
+          errors.push(`${w}: ${label}の注目箇所「${focus.quote ?? ''}」に priority ${e.insight} の気づきがありません`);
+          continue;
+        }
+        target = insight.thought;
+        where = `${e.focus}:${e.insight}`;
+      }
+      if (e.text !== undefined) {
+        if (!isStr(e.text)) {
+          errors.push(`${w}: ${label}の text が空です（全体を指すときは text を省きます）`);
+          continue;
+        }
+        const span = isStr(target) ? locateQuote(target, e.text) : null;
+        if (!span) {
+          errors.push(`${w}: ${label}の text「${e.text}」は${e.insight !== undefined ? '気づき' : '引用'}「${target ?? ''}」の一部にしてください`);
+          continue;
+        }
+        marks.push({ where, span, text: e.text, link: i });
+      }
+      ends[side] = e;
+    }
+    if (!ends.term || !ends.source) return;
+    if (ends.term.focus === ends.source.focus) {
+      errors.push(`${w}: 同じ注目箇所の中どうしはつなげません。別の注目箇所とつないでください`);
+      return;
+    }
+    const key = JSON.stringify(['term', 'source'].map(side => [ends[side].focus, ends[side].insight ?? null, ends[side].text ?? null]));
+    if (seen.has(key)) errors.push(`${w}: 同じつながりがほかにもあります`);
+    seen.add(key);
+  });
+
+  // 同じ文の中の語句は、同じ範囲か重ならない範囲にする（板書で語句に印を付けるため）
+  marks.forEach((m, k) => {
+    const other = marks.slice(0, k).find(o => o.where === m.where && o.link !== m.link
+      && o.span[0] < m.span[1] && m.span[0] < o.span[1] && (o.span[0] !== m.span[0] || o.span[1] !== m.span[1]));
+    if (other) errors.push(`つながり${m.link + 1}: 語句「${m.text}」が、つながり${other.link + 1}の語句「${other.text}」と重なっています`);
+  });
 }

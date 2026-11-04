@@ -72,3 +72,23 @@ test('次の問題は、後ろにあるまだ完了していない問題（な�
   assert.equal(nextProblem([{ id: 'a' }], 'a', {}), null);
   assert.equal(nextProblem(list, 'draft', {}), null, '一覧にない問題（下書き）');
 });
+
+test('つながりの端を、並べ替えた後の番号と語句の位置に直す', () => {
+  const data = validProblem();
+  data.links = [{ term: { focus: 'f1', insight: 1, text: '場合の数' }, source: { focus: 'f2', insight: 2, text: 'nCr' } }, { term: { focus: 'f2', insight: 1 }, source: { focus: 'f1' } }];
+  const p = normalizeProblem(data);
+  // f1 は優先順位1なので0番目、f2 の priority 2 の気づき（nCr で数える）は並べ替えた後の1番目
+  assert.deepEqual(p.resolvedLinks[0], {
+    term: { focusIndex: 0, insightIndex: 0, text: '場合の数', span: [0, 4] },
+    source: { focusIndex: 1, insightIndex: 1, text: 'nCr', span: [0, 3] },
+  });
+  assert.deepEqual(p.resolvedLinks[1].source, { focusIndex: 0, insightIndex: -1, text: null, span: null }, 'insight がなければ引用、text がなければ全体');
+  assert.deepEqual(normalizeProblem(validProblem()).resolvedLinks, [], 'つながりがなくても使える');
+});
+
+test('元のデータの項目は残すので、作成ツールでそのまま読み直せる', async () => {
+  const { fromData, toData } = await import('../serialize.js');
+  const data = validProblem();
+  data.links = [{ term: { focus: 'f1', insight: 1, text: '場合の数' }, source: { focus: 'f2', insight: 2, text: 'nCr' } }];
+  assert.deepEqual(toData(fromData(normalizeProblem(data))), toData(fromData(data)));
+});

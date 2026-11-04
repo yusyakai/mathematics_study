@@ -17,6 +17,7 @@ export function emptyDraft() {
     problem: '',
     origin: '',
     focuses: [],
+    links: [], // つながり（任意）。端の insight は「その注目箇所の中で何番目の気づきか」（null は引用）
     meta: { source: 'manual', model: '', reviewed: false },
   };
 }
@@ -26,6 +27,16 @@ export function fromData(data) {
   const base = emptyDraft();
   const d = data && typeof data === 'object' ? data : {};
   const byPriority = (a, b) => (a?.priority ?? 0) - (b?.priority ?? 0);
+  // つながりの端の priority を、作成ツールでの番号（並べ替えた後の何番目か）に直す
+  const insightNumbers = new Map((Array.isArray(d.focuses) ? d.focuses : []).map(f => [
+    f?.id,
+    new Map((Array.isArray(f?.insights) ? [...f.insights].sort(byPriority) : []).map((s, i) => [s?.priority ?? i + 1, i + 1])),
+  ]));
+  const linkEnd = (e) => ({
+    focus: e?.focus ?? '',
+    insight: e?.insight === undefined || e?.insight === null ? null : (insightNumbers.get(e.focus)?.get(e.insight) ?? e.insight),
+    text: e?.text ?? '',
+  });
   return {
     schemaVersion: SCHEMA_VERSION,
     id: d.id ?? base.id,
@@ -46,6 +57,7 @@ export function fromData(data) {
         thought: s?.thought ?? '',
       })),
     })),
+    links: (Array.isArray(d.links) ? d.links : []).map(l => ({ term: linkEnd(l?.term), source: linkEnd(l?.source) })),
     meta: { ...base.meta, ...(d.meta && typeof d.meta === 'object' ? d.meta : {}), model: d.meta?.model ?? '' },
   };
 }
@@ -70,17 +82,27 @@ export function toData(draft) {
     focus.insights = f.insights.map((s, j) => ({ priority: j + 1, kind: s.kind, cue: str(s.cue), thought: str(s.thought).trim() }));
     return focus;
   });
+  if (draft.links?.length) data.links = draft.links.map(l => ({ term: linkEndData(l.term), source: linkEndData(l.source) }));
   data.meta = { source: draft.meta.source };
   if (draft.meta.source === 'ai' && str(draft.meta.model).trim()) data.meta.model = str(draft.meta.model).trim();
   data.meta.reviewed = Boolean(draft.meta.reviewed);
   return data;
 }
 
-// 手書きのデータファイルと同じ体裁の JSON 文字列にする（気づき・meta は1行にまとめる）
+// つながりの端を書き出す形にする（insight が null なら引用を指すので省く。語句が空なら全体を指すので省く）
+function linkEndData(e) {
+  const end = { focus: str(e?.focus) };
+  if (e?.insight !== null && e?.insight !== undefined) end.insight = e.insight;
+  if (str(e?.text).trim()) end.text = str(e.text).trim();
+  return end;
+}
+
+// 手書きのデータファイルと同じ体裁の JSON 文字列にする（気づき・つながり・meta は1行にまとめる）
 export function formatJson(data) {
   const s = JSON.stringify;
-  const inline = (obj) => `{ ${Object.entries(obj).map(([k, v]) => `${s(k)}: ${s(v)}`).join(', ')} }`;
-  const { focuses = [], meta = {}, ...head } = data;
+  const isObject = (v) => v && typeof v === 'object' && !Array.isArray(v);
+  const inline = (obj) => `{ ${Object.entries(obj).map(([k, v]) => `${s(k)}: ${isObject(v) ? inline(v) : s(v)}`).join(', ')} }`;
+  const { focuses = [], links, meta = {}, ...head } = data;
   const focusBlocks = focuses.map(f => {
     const { insights = [], ...rest } = f;
     const lines = Object.entries(rest).map(([k, v]) => `      ${s(k)}: ${s(v)}`);
@@ -90,6 +112,7 @@ export function formatJson(data) {
   });
   const lines = Object.entries(head).map(([k, v]) => `  ${s(k)}: ${s(v)}`);
   lines.push(focusBlocks.length ? `  "focuses": [\n${focusBlocks.join(',\n')}\n  ]` : '  "focuses": []');
+  if (links) lines.push(links.length ? `  "links": [\n${links.map(l => `    ${inline(l)}`).join(',\n')}\n  ]` : '  "links": []');
   lines.push(`  "meta": ${inline(meta)}`);
   return `{\n${lines.join(',\n')}\n}\n`;
 }

@@ -49,5 +49,9 @@
       ]
     }
   ],
+  "links": [
+    { "term": { "focus": "f1", "insight": 1, "text": "あてはまる場合の数" }, "source": { "focus": "f4", "insight": 2, "text": "₃C₂" } },
+    { "term": { "focus": "f1", "insight": 1, "text": "全体の場合の数" }, "source": { "focus": "f3", "insight": 2, "text": "₈C₂" } }
+  ],
   "meta": { "source": "manual", "reviewed": true }
 }

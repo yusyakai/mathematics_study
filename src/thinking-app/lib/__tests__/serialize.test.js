@@ -67,3 +67,20 @@ test('使われていない注目箇所ID', () => {
   assert.equal(nextFocusIdFor({ focuses: [] }), 'f1');
   assert.equal(nextFocusIdFor({ focuses: [{ id: 'f1' }, { id: 'f3' }] }), 'f2');
 });
+
+test('つながりの端の priority は、作成ツールでは並べ替えた後の番号になり、書き出すと priority に戻る', () => {
+  const data = validProblem();
+  // f2 の気づきは priority 2 → 1 の順に書いてある（作成ツールでは priority 1 が1番目）
+  data.links = [{ term: { focus: 'f1', insight: 1, text: '場合の数' }, source: { focus: 'f2', insight: 2, text: 'nCr' } }, { term: { focus: 'f2', insight: 1 }, source: { focus: 'f1' } }];
+  const draft = fromData(data);
+  assert.deepEqual(draft.links[0].source, { focus: 'f2', insight: 2, text: 'nCr' });
+  assert.deepEqual(draft.links[1], { term: { focus: 'f2', insight: 1, text: '' }, source: { focus: 'f1', insight: null, text: '' } });
+  const out = toData(draft);
+  assert.deepEqual(out.links, data.links);
+  assert.deepEqual(validateThinking(out).errors, []);
+});
+
+test('つながりがなければ links を書き出さない', () => {
+  assert.equal('links' in toData(fromData(validProblem())), false);
+  assert.deepEqual(fromData(validProblem()).links, []);
+});

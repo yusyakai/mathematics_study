@@ -42,5 +42,9 @@
       ]
     }
   ],
+  "links": [
+    { "term": { "focus": "f1", "insight": 2, "text": "範囲内" }, "source": { "focus": "f3", "text": "0 ≤ x ≤ 3" } },
+    { "term": { "focus": "f3", "insight": 2, "text": "軸 x = 1" }, "source": { "focus": "f2", "insight": 3, "text": "y = (x − 1)² + 2" } }
+  ],
   "meta": { "source": "manual", "reviewed": true }
 }

@@ -109,7 +109,7 @@ export default function LearnView({ problem, initialDisplay, onBack, onSummary }
             <CameraStage problem={problem} view={view} onSelect={select} onFallback={() => changeDisplay('scene')} />
           )}
         </div>
-        <aside className="learn-panel" aria-label="注目箇所と気づき">
+        <aside className="learn-panel" aria-label="注目箇所と板書">
           <FocusGuide
             problem={problem}
             learning={learning}

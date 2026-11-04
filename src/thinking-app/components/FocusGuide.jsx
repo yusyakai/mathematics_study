@@ -3,23 +3,23 @@ import { ROLES } from '../lib/catalog.js';
 import { focusColor } from '../lib/colors.js';
 import { hasPending, revealedTotal, nextAction } from '../lib/progress.js';
 import { insightTotal } from '../lib/model.js';
-import { FocusHead, InsightCard } from './InsightCard.jsx';
+import Board from './Board.jsx';
 import Icon from './Icon.jsx';
 
-// 注目箇所の番号ボタンと、選んだ箇所の気づき（優先順位の高いものから1個ずつ）
+// 注目箇所の番号ボタンと板書（出した気づきを書き並べ、つながりを線で結ぶ）。気づきは優先順位の高いものから1個ずつ出る
 //   learning: useLearning() の戻り値
 //   footer  : 操作ボタンの下に添える内容（PC のキー操作の案内など）
 // 「次へ」のボタンは一覧の下端に固定し、気づきが増えて一覧が長くなっても同じ位置で押せるようにする
 export default function FocusGuide({ problem, learning, onSummary, footer = null }) {
   const { state, promptFirst, complete, nextId, show, select, advance, reset, setPromptFirst } = learning;
 
-  // 気づきが増えたら、いちばん新しい気づきが見えるところまで一覧を動かす
+  // 気づきが増えたら・注目箇所を選んだら、板書のその箇所のいちばん新しい気づきが見えるところまで動かす
   const areaRef = useRef(null);
   const activeEntry = state.activeId ? state.focus[state.activeId] : null;
   useEffect(() => {
-    const items = areaRef.current?.querySelectorAll('.insight');
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    items?.[items.length - 1]?.scrollIntoView({ block: 'end', behavior: reduce ? 'auto' : 'smooth' });
+    const section = areaRef.current?.querySelector('.board-section.active');
+    const items = section?.querySelectorAll('.insight');
+    revealOnBoard(items?.[items.length - 1] ?? section);
   }, [state.activeId, activeEntry?.opened, activeEntry?.revealed]);
 
   const modeToggle = (
@@ -48,10 +48,7 @@ export default function FocusGuide({ problem, learning, onSummary, footer = null
     );
   }
 
-  const activeIndex = problem.focuses.findIndex(f => f.id === state.activeId);
-  const active = problem.focuses[activeIndex];
-  const entry = active ? state.focus[active.id] : null;
-  const pending = Boolean(active) && hasPending(state, active.id);
+  const pending = Boolean(state.activeId) && hasPending(state, state.activeId);
   const anyOpened = state.order.some(id => state.focus[id].opened > 0);
 
   // 次の操作のボタン（キー操作の「→」と同じ）
@@ -96,18 +93,10 @@ export default function FocusGuide({ problem, learning, onSummary, footer = null
       </div>
 
       <div className="insight-area" ref={areaRef} aria-live="polite">
-        {active ? (
-          <>
-            <FocusHead focus={active} index={activeIndex} />
-            <ol className="insight-list" style={{ '--focus': focusColor(activeIndex) }}>
-              {active.insights.slice(0, entry.revealed).map((s, i) => (
-                <InsightCard key={s.priority} insight={s} order={i + 1} />
-              ))}
-              {pending && <InsightCard insight={active.insights[entry.revealed]} prompt />}
-            </ol>
-          </>
+        {anyOpened ? (
+          <Board problem={problem} progress={state.focus} activeId={state.activeId} />
         ) : (
-          <p className="guide-text">番号の順に見ていこう。問題文の印をタップしても選べます。</p>
+          <p className="guide-text">番号の順に見ていこう。問題文の印をタップしても選べます。見た気づきは板書に書き並びます。</p>
         )}
         {complete && !pending && (
           <p className="guide-done"><Icon name="check" size={16} />すべての気づきを見ました</p>
@@ -124,4 +113,36 @@ export default function FocusGuide({ problem, learning, onSummary, footer = null
       </div>
     </div>
   );
+}
+
+// 板書の要素が見えるところまで一覧を動かす（下に固定した操作ボタンに隠れないように）。
+// その要素でつながりが見えたときは、つながりの反対の端（前の注目箇所の語句）も一緒に見えるようにする。入りきらなければ要素を優先する
+function revealOnBoard(el) {
+  const scroller = scrollParent(el);
+  if (!el || !scroller) return;
+  const box = scroller.getBoundingClientRect();
+  const footer = scroller.querySelector('.guide-footer');
+  const viewTop = box.top + 12;
+  const viewBottom = box.bottom - (footer?.offsetHeight ?? 0) - 12;
+  const own = el.getBoundingClientRect();
+  const others = [...el.querySelectorAll('[data-link-end]')].flatMap(mark => mark.dataset.linkEnd.split(' ').map(key => {
+    const [index, role] = key.split('-');
+    return scroller.querySelector(`[data-link-end~="${index}-${role === 'term' ? 'source' : 'term'}"]`);
+  })).filter(Boolean).map(other => other.getBoundingClientRect());
+  const top = Math.min(own.top, ...others.map(r => r.top));
+  const bottom = Math.max(own.bottom, ...others.map(r => r.bottom));
+  const [rangeTop, rangeBottom] = bottom - top <= viewBottom - viewTop ? [top, bottom] : [own.top, own.bottom];
+  let delta = 0;
+  if (rangeBottom > viewBottom) delta = rangeBottom - viewBottom;
+  if (rangeTop - delta < viewTop) delta = rangeTop - viewTop;
+  if (Math.abs(delta) < 1) return;
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  scroller.scrollBy({ top: delta, behavior: reduce ? 'auto' : 'smooth' });
+}
+
+function scrollParent(el) {
+  for (let p = el?.parentElement; p; p = p.parentElement) {
+    if (/(auto|scroll)/.test(getComputedStyle(p).overflowY)) return p;
+  }
+  return null;
 }
